@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#04070f" />
+    <meta name="description" content="Cascade — chain elemental reactions across waves of geometric invaders." />
+    <title>Cascade</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b1430'/%3E%3Cpath d='M16 4 L26 24 H6 Z' fill='%23ff8a2b'/%3E%3Ccircle cx='16' cy='20' r='5' fill='%2342b8ff'/%3E%3C/svg%3E" />
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background: #04070f;
+        overflow: hidden;
+        overscroll-behavior: none;
+      }
+      /* Phaser scales the canvas to fit and centres it inside this box. */
+      #game {
+        position: fixed;
+        inset: 0;
+      }
+      #game canvas {
+        touch-action: none;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        outline: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
