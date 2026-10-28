@@ -37,10 +37,10 @@ Requires Node.js 20+ (CI uses Node 22).
 
 ```bash
 npm install          # install dependencies (use `npm ci` for a clean install from the lockfile)
-npm run dev          # dev server at http://localhost:5173/cascade/
+npm run dev          # dev server at http://localhost:5173/
 npm test             # Vitest unit tests (reaction, damage, upgrade and wave logic)
 npm run build        # type-check and production build into dist/
-npm run preview      # serve the production build at http://localhost:4173/cascade/
+npm run preview      # serve the production build at http://localhost:4173/
 npm run test:e2e     # Playwright smoke test against the production build (run `npm run build` first)
 ```
 
@@ -60,7 +60,7 @@ sizes. It's useful for balance tuning: `npx tsx scripts/simulate.ts 8`.
 | `daily=1` | Jump straight into today's Daily Run |
 | `speed=N` | Simulation speed multiplier, 1–4 (for automated tests) |
 
-Example: `http://localhost:5173/cascade/?wave=3&unlock=all&seed=42`. Runs started with `wave`, `unlock` or `speed`
+Example: `http://localhost:5173/?wave=3&unlock=all&seed=42`. Runs started with `wave`, `unlock` or `speed`
 are not saved to your best result.
 
 **Daily Run** seeds the wave layouts and upgrade offers from the current UTC date, so everyone plays the same run that day.
@@ -103,7 +103,10 @@ cascade.
 
 `.github/workflows/deploy.yml` runs the tests, builds the game and deploys `dist/` to GitHub Pages on every push to
 `main`. In the repository settings, set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**.
-Vite's `base` is `/cascade/`; set the `BASE_PATH` environment variable to build for a different path.
+Vite's `base` is relative (`./`), so the same build works on GitHub Pages (`/cascade/`), on Vercel or any
+other host at the domain root. Set `BASE_PATH` to force an absolute base.
+
+On **Vercel**, import the repository with the Vite preset (build command `npm run build`, output directory `dist`).
 
 All visuals are drawn from code and all sounds are synthesised at runtime, so the game uses no external art,
 audio or paid APIs.

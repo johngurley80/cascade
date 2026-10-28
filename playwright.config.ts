@@ -5,12 +5,12 @@ export default defineConfig({
   testDir: 'e2e',
   timeout: 120_000,
   use: {
-    baseURL: 'http://127.0.0.1:4173/cascade/',
+    baseURL: 'http://127.0.0.1:4173/',
     ...devices['Desktop Chrome'],
   },
   webServer: {
     command: 'npx vite preview --port 4173 --strictPort --host 127.0.0.1',
-    url: 'http://127.0.0.1:4173/cascade/',
+    url: 'http://127.0.0.1:4173/',
     reuseExistingServer: true,
     timeout: 60_000,
   },

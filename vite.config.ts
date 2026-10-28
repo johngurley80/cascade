@@ -1,10 +1,10 @@
 import { defineConfig } from 'vitest/config';
 
-// The game is published at https://<user>.github.io/cascade/, so assets are
-// served from /cascade/ in dev, preview and production alike.
-// Override with BASE_PATH (e.g. BASE_PATH=/ for a root-hosted deploy).
+// Relative asset paths, so the same build works at a domain root (Vercel,
+// Netlify, localhost) and under a sub-path (GitHub Pages: /cascade/).
+// Override with BASE_PATH if an absolute base is ever needed.
 export default defineConfig({
-  base: process.env.BASE_PATH ?? '/cascade/',
+  base: process.env.BASE_PATH ?? './',
   build: {
     target: 'es2020',
     chunkSizeWarningLimit: 1600,
