@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { sfx } from '../audio/Sfx';
+import { unlockAudio } from '../platform/settings';
 import { COLORS, FONT, css } from './theme';
 
 export interface ButtonOptions {
@@ -52,7 +53,7 @@ export class Button extends Phaser.GameObjects.Container {
     this.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
       ev?.stopPropagation?.();
       if (!this.enabled) return;
-      sfx.unlock();
+      unlockAudio();
       this.armed = true;
       this.redraw();
     });

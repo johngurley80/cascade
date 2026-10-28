@@ -12,8 +12,9 @@ interface Particle {
   color: number;
   drag: number;
   gravity: number;
-  /** 'spark' draws a short streak along velocity; 'dot' a fading circle; 'puff' a soft growing blob. */
-  shape: 'spark' | 'dot' | 'puff';
+  /** 'spark' draws a short streak along velocity; 'dot' a fading circle; 'puff' a soft growing blob; 'shard' a spinning fragment. */
+  shape: 'spark' | 'dot' | 'puff' | 'shard';
+  spin: number;
 }
 
 interface Ring {
@@ -106,6 +107,7 @@ export class Effects {
         drag: opts.drag ?? 3,
         gravity: opts.gravity ?? 0,
         shape: opts.shape ?? 'spark',
+        spin: (Math.random() - 0.5) * 14,
       });
     }
   }
@@ -195,6 +197,17 @@ export class Effects {
       if (p.shape === 'puff') {
         soft.fillStyle(p.color, 0.55 * a);
         soft.fillCircle(p.x, p.y, p.size * (2 - a));
+      } else if (p.shape === 'shard') {
+        const ang = p.spin * (p.max - p.life) + p.spin;
+        const sz = p.size * (0.6 + 0.4 * a);
+        const c = Math.cos(ang);
+        const sn = Math.sin(ang);
+        glow.fillStyle(p.color, Math.min(1, a * 1.4));
+        glow.fillTriangle(
+          p.x + c * sz, p.y + sn * sz,
+          p.x - c * sz * 0.6 - sn * sz * 0.7, p.y - sn * sz * 0.6 + c * sz * 0.7,
+          p.x - c * sz * 0.6 + sn * sz * 0.7, p.y - sn * sz * 0.6 - c * sz * 0.7,
+        );
       } else if (p.shape === 'dot') {
         glow.fillStyle(p.color, a);
         glow.fillCircle(p.x, p.y, p.size * (0.5 + a * 0.5));

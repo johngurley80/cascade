@@ -50,6 +50,13 @@ export class Overlay {
     return t;
   }
 
+  /** Place an arbitrary object centred at the cursor, taking `height` pixels. */
+  addBlock(obj: Phaser.GameObjects.GameObject & { setPosition(x: number, y: number): unknown }, height: number): void {
+    obj.setPosition(WORLD.width / 2, this.cursorY + height / 2);
+    this.container.add(obj);
+    this.cursorY += height + 14;
+  }
+
   space(px: number): void {
     this.cursorY += px;
   }

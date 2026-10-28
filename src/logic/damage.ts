@@ -1,4 +1,4 @@
-import { ENEMIES } from '../config';
+import { ELITE, ENEMIES } from '../config';
 import type { Enemy } from './types';
 
 export interface DamageResult {
@@ -29,11 +29,20 @@ export interface RewardStats {
   score: number;
 }
 
-/** Award a defeat exactly once per enemy. Returns false if already awarded. */
-export function awardDefeat(enemy: Enemy, stats: RewardStats): boolean {
-  if (enemy.rewarded) return false;
+/** Base score for defeating an enemy (elites are worth more). */
+export function baseScore(enemy: Enemy): number {
+  return ENEMIES[enemy.kind].score * (enemy.traits.elite ? ELITE.scoreMult : 1);
+}
+
+/**
+ * Award a defeat exactly once per enemy, with an optional score multiplier.
+ * Returns the score awarded, or null if this enemy was already rewarded.
+ */
+export function awardDefeat(enemy: Enemy, stats: RewardStats, multiplier = 1): number | null {
+  if (enemy.rewarded) return null;
   enemy.rewarded = true;
+  const score = Math.round(baseScore(enemy) * multiplier);
   stats.kills += 1;
-  stats.score += ENEMIES[enemy.kind].score;
-  return true;
+  stats.score += score;
+  return score;
 }

@@ -7,6 +7,24 @@ export type SoundName =
   | 'shotFire'
   | 'shotWater'
   | 'shotLightning'
+  | 'shotFrost'
+  | 'shotWind'
+  | 'shotToxin'
+  | 'shotVoid'
+  | 'gust'
+  | 'freeze'
+  | 'shatter'
+  | 'overload'
+  | 'ignition'
+  | 'poison'
+  | 'singularity'
+  | 'collapse'
+  | 'detonation'
+  | 'shieldBlock'
+  | 'shieldBreak'
+  | 'discovery'
+  | 'split'
+  | 'actClear'
   | 'hit'
   | 'splash'
   | 'steam'
@@ -29,6 +47,22 @@ const THROTTLE: Partial<Record<SoundName, number>> = {
   shotFire: 0.045,
   shotWater: 0.045,
   shotLightning: 0.045,
+  shotFrost: 0.045,
+  shotWind: 0.045,
+  shotToxin: 0.045,
+  shotVoid: 0.045,
+  gust: 0.08,
+  freeze: 0.06,
+  shatter: 0.06,
+  overload: 0.07,
+  ignition: 0.08,
+  poison: 0.08,
+  singularity: 0.1,
+  collapse: 0.08,
+  detonation: 0.07,
+  shieldBlock: 0.06,
+  shieldBreak: 0.08,
+  split: 0.06,
   hit: 0.035,
   splash: 0.06,
   steam: 0.07,
@@ -41,6 +75,8 @@ const THROTTLE: Partial<Record<SoundName, number>> = {
 class Sfx {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
+  private bus: AudioNode | null = null;
+  private musicGain: GainNode | null = null;
   private noise: AudioBuffer | null = null;
   private last = new Map<SoundName, number>();
   private _muted = false;
@@ -53,6 +89,7 @@ class Sfx {
   setMuted(muted: boolean): void {
     this._muted = muted;
     if (this.master && this.ctx) this.master.gain.setTargetAtTime(muted ? 0 : 0.55, this.ctx.currentTime, 0.02);
+    if (this.musicGain && this.ctx) this.musicGain.gain.setTargetAtTime(muted ? 0 : 1, this.ctx.currentTime, 0.02);
   }
 
   /** Create/resume the audio context. Call from a user gesture handler. */
@@ -68,6 +105,10 @@ class Sfx {
         comp.threshold.value = -16;
         comp.ratio.value = 6;
         this.master.connect(comp).connect(this.ctx.destination);
+        this.bus = comp;
+        this.musicGain = this.ctx.createGain();
+        this.musicGain.gain.value = this._muted ? 0 : 1;
+        this.musicGain.connect(comp);
         const len = this.ctx.sampleRate;
         this.noise = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
         const data = this.noise.getChannelData(0);
@@ -77,6 +118,21 @@ class Sfx {
     } catch {
       this.ctx = null;
     }
+  }
+
+  /** The running audio context (null until a user gesture unlocks audio). */
+  get context(): AudioContext | null {
+    return this.ctx && this.ctx.state !== 'closed' ? this.ctx : null;
+  }
+
+  /** Where the music should connect (respects mute). */
+  get musicBus(): AudioNode | null {
+    return this.bus ? this.musicGain : null;
+  }
+
+  /** Shared white-noise buffer for percussion. */
+  get noiseBuffer(): AudioBuffer | null {
+    return this.noise;
   }
 
   play(name: SoundName, intensity = 1): void {
@@ -98,6 +154,71 @@ class Sfx {
         break;
       case 'shotLightning':
         this.tone(now, 'square', 1500, 700, 0.05, 0.045);
+        break;
+      case 'shotFrost':
+        this.tone(now, 'sine', 1800, 2400, 0.06, 0.05);
+        this.tone(now, 'triangle', 900, 1200, 0.05, 0.04);
+        break;
+      case 'shotWind':
+        this.noiseHit(now, 0.08, 1200, 'bandpass', 0.12);
+        break;
+      case 'shotToxin':
+        this.tone(now, 'square', 260, 180, 0.07, 0.04);
+        this.tone(now + 0.02, 'sine', 520, 300, 0.05, 0.05);
+        break;
+      case 'shotVoid':
+        this.tone(now, 'sine', 160, 90, 0.1, 0.12);
+        this.tone(now, 'sawtooth', 320, 140, 0.08, 0.03);
+        break;
+      case 'gust':
+        this.noiseHit(now, 0.3, 700, 'bandpass', 0.18);
+        break;
+      case 'freeze':
+        [2200, 2900, 3700].forEach((f, k) => this.tone(now + k * 0.025, 'sine', f, f * 1.05, 0.12, 0.05));
+        break;
+      case 'shatter':
+        this.noiseHit(now, 0.22, 5000, 'highpass', 0.22 * i);
+        [3100, 4200, 2600].forEach((f, k) => this.tone(now + k * 0.02, 'triangle', f, f * 0.7, 0.09, 0.05));
+        break;
+      case 'overload':
+        this.tone(now, 'sawtooth', 120, 60, 0.2, 0.18);
+        this.noiseHit(now, 0.15, 3000, 'bandpass', 0.15);
+        break;
+      case 'ignition':
+        this.noiseHit(now, 0.45, 500, 'lowpass', 0.32 * i);
+        this.tone(now, 'sine', 90, 30, 0.4, 0.3);
+        break;
+      case 'poison':
+        this.tone(now, 'sine', 300, 420, 0.1, 0.06);
+        this.tone(now + 0.05, 'sine', 360, 520, 0.08, 0.05);
+        break;
+      case 'singularity':
+        this.tone(now, 'sine', 60, 140, 0.5, 0.16);
+        this.tone(now, 'triangle', 600, 200, 0.4, 0.04);
+        break;
+      case 'collapse':
+        this.tone(now, 'sine', 220, 40, 0.35, 0.3);
+        this.noiseHit(now, 0.25, 400, 'lowpass', 0.25);
+        break;
+      case 'detonation':
+        this.noiseHit(now, 0.35, 900, 'lowpass', 0.3);
+        this.tone(now, 'square', 140, 50, 0.25, 0.12);
+        break;
+      case 'shieldBlock':
+        this.tone(now, 'triangle', 1400, 1300, 0.05, 0.05);
+        break;
+      case 'shieldBreak':
+        this.noiseHit(now, 0.18, 6000, 'highpass', 0.18);
+        this.tone(now, 'triangle', 1600, 500, 0.15, 0.08);
+        break;
+      case 'split':
+        this.tone(now, 'square', 500, 900, 0.06, 0.05);
+        break;
+      case 'discovery':
+        [659, 784, 988, 1319].forEach((f, k) => this.tone(now + k * 0.06, 'triangle', f, f, 0.22, 0.12));
+        break;
+      case 'actClear':
+        [392, 494, 587, 784, 988].forEach((f, k) => this.tone(now + k * 0.09, 'triangle', f, f, 0.3, 0.13));
         break;
       case 'hit':
         this.tone(now, 'triangle', 240, 120, 0.05, 0.08);
