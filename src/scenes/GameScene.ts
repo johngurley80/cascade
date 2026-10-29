@@ -69,8 +69,6 @@ export class GameScene extends Phaser.Scene {
   private pauseOverlay: Overlay | null = null;
   private resultOverlay: Overlay | null = null;
   private resultScheduled = false;
-  private firePointerId = -1;
-  private spaceHeld = false;
   private pendingNotice = '';
   private lastCascadeMilestone = new Map<number, number>();
   private codex = new Set<ReactionId>();
@@ -92,8 +90,6 @@ export class GameScene extends Phaser.Scene {
     this.pauseOverlay = null;
     this.resultOverlay = null;
     this.resultScheduled = false;
-    this.firePointerId = -1;
-    this.spaceHeld = false;
     this.pendingNotice = '';
     this.lastCascadeMilestone = new Map();
     this.codex = loadCodex();
@@ -109,10 +105,10 @@ export class GameScene extends Phaser.Scene {
     this.arena = new ArenaRenderer(this);
     const soft = this.add.graphics().setDepth(15);
     const glow = this.add.graphics().setDepth(35);
-    this.effects = new Effects(soft, glow);
+    this.effects = new Effects(this, soft, glow);
     this.effects.reduced = settings.reducedEffects;
     const mode = this.cfg.daily ? `DAILY RUN · ${this.cfg.daily}` : this.cfg.endless ? 'ENDLESS' : `seed ${this.cfg.seed}`;
-    this.hud = new Hud(this, { onSelectSlot: (i) => this.selectSlot(i), onPause: () => this.pause('Paused') }, mode);
+    this.hud = new Hud(this, { onPause: () => this.pause('Paused') }, mode);
     this.upgradePanel = new UpgradePanel(this);
     this.flashRect = this.add.rectangle(0, 0, WORLD.width, WORLD.height, COLORS.danger, 0).setOrigin(0).setDepth(90);
 
@@ -128,40 +124,17 @@ export class GameScene extends Phaser.Scene {
     return this.paused || this.world.phase !== 'playing';
   }
 
+  /** Aim-only input: every element fires on its own. Mouse aims on hover, touch while dragging. */
   private setupInput(): void {
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
       if (this.inputBlocked()) return;
-      // Mouse aims on hover; touch aims only while dragging.
       if (p.wasTouch && !p.isDown) return;
-      if (p.y < WORLD.arenaBottom || p.id === this.firePointerId) this.world.aimAt(p.x, p.y);
+      if (p.y < WORLD.arenaBottom) this.world.aimAt(p.x, p.y);
     });
     this.input.on('pointerdown', (p: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
       unlockAudio();
       if (over.length > 0 || this.inputBlocked()) return;
-      if (p.y > WORLD.arenaBottom || p.y < WORLD.arenaTop) return;
-      if (p.rightButtonDown()) {
-        this.cycleElement(1);
-        return;
-      }
-      this.world.aimAt(p.x, p.y);
-      this.firePointerId = p.id;
-      this.world.firing = true;
-    });
-    const release = (p: Phaser.Input.Pointer) => {
-      if (p.id !== this.firePointerId) return;
-      this.firePointerId = -1;
-      if (!this.spaceHeld) this.world.firing = false;
-    };
-    this.input.on('pointerup', release);
-    this.input.on('pointerupoutside', release);
-    this.input.on('gameout', () => {
-      if (this.firePointerId !== -1 && !this.input.activePointer.isDown) {
-        this.firePointerId = -1;
-        if (!this.spaceHeld) this.world.firing = false;
-      }
-    });
-    this.input.on('wheel', (_p: Phaser.Input.Pointer, _o: unknown, _dx: number, dy: number) => {
-      if (!this.inputBlocked() && dy !== 0) this.cycleElement(dy > 0 ? 1 : -1);
+      if (p.y < WORLD.arenaBottom && p.y > WORLD.arenaTop) this.world.aimAt(p.x, p.y);
     });
 
     const kb = this.input.keyboard;
@@ -184,39 +157,8 @@ export class GameScene extends Phaser.Scene {
         else this.pause('Paused');
         return;
       }
-      if (this.paused) return;
-      if (key === 'm') {
-        setMuted(!settings.muted);
-        return;
-      }
-      const n = Number.parseInt(key, 10);
-      if (n >= 1 && n <= 9) this.selectSlot(n - 1);
-      if (key === 'q') this.cycleElement(-1);
-      if (key === 'e') this.cycleElement(1);
-      if (key === ' ' && !ev.repeat) {
-        this.spaceHeld = true;
-        if (!this.inputBlocked()) this.world.firing = true;
-      }
+      if (!this.paused && key === 'm') setMuted(!settings.muted);
     });
-    kb.on('keyup', (ev: KeyboardEvent) => {
-      if (ev.key === ' ') {
-        this.spaceHeld = false;
-        if (this.firePointerId === -1) this.world.firing = false;
-      }
-    });
-  }
-
-  private selectSlot(index: number): void {
-    const el = this.world.loadout.elements[index];
-    if (!el || this.inputBlocked()) return;
-    if (this.world.selected !== el && this.world.selectElement(el)) sfx.play('select');
-  }
-
-  private cycleElement(dir: number): void {
-    const owned = this.world.loadout.elements;
-    if (owned.length < 2) return;
-    const i = owned.indexOf(this.world.selected);
-    this.selectSlot((i + dir + owned.length) % owned.length);
   }
 
   private setupFocusHandling(): void {
@@ -249,7 +191,6 @@ export class GameScene extends Phaser.Scene {
         kills: this.world.stats.kills,
         offer: [...this.world.offer],
         offerKind: offerKindAfterWave(this.world.phase === 'start' ? 0 : this.world.wave, this.world.loadout),
-        selected: this.world.selected,
         elements: [...this.world.loadout.elements],
         levels: { ...this.world.loadout.levels },
         codex: [...this.codex],
@@ -281,9 +222,6 @@ export class GameScene extends Phaser.Scene {
   private pause(reason: string): void {
     if (this.paused || this.resultOverlay || this.world.phase !== 'playing') return;
     this.paused = true;
-    this.world.firing = false;
-    this.firePointerId = -1;
-    this.spaceHeld = false;
     music.setIntensity(0);
     const o = new Overlay(this, 'PAUSED', COLORS.text, 180);
     this.pauseOverlay = o;
@@ -345,8 +283,6 @@ export class GameScene extends Phaser.Scene {
     const w = this.world;
     const notice = this.pendingNotice;
     this.pendingNotice = '';
-    w.firing = false;
-    this.firePointerId = -1;
     music.setIntensity(0);
     music.setBoss(false);
     // Save between waves so the run can be continued later.
@@ -506,6 +442,12 @@ export class GameScene extends Phaser.Scene {
     if (w.phase === 'playing' && !this.paused) {
       music.setIntensity(w.wave >= 6 || danger > 0.6 ? 2 : 1);
       music.setBoss(bossAlive);
+      // Tempo follows the threat: how close the nearest enemy is, plus how crowded the arena is.
+      let closest = 0;
+      for (const e of w.enemies) closest = Math.max(closest, (e.y - (WORLD.defenceLineY - 560)) / 560);
+      music.setTempo(Math.min(1, Math.max(0, closest) * 0.85 + Math.min(1, w.enemies.length / 140) * 0.25));
+    } else {
+      music.setTempo(0);
     }
     if ((w.phase === 'upgrade' || w.phase === 'start') && !this.upgradePanel.visible && !this.paused) this.showChoice();
     if ((w.phase === 'victory' || w.phase === 'defeat') && !this.resultScheduled) {
@@ -527,6 +469,7 @@ export class GameScene extends Phaser.Scene {
           gravity: -40,
           shape: 'dot',
           size: 2.5,
+          minor: true,
         });
       }
       if (e.wet > 0 && Math.random() < rate * 0.3 * dt) {
@@ -537,10 +480,11 @@ export class GameScene extends Phaser.Scene {
           gravity: 220,
           shape: 'dot',
           size: 2.2,
+          minor: true,
         });
       }
       if (e.frozen > 0 && Math.random() < rate * 0.25 * dt) {
-        this.effects.burst(e.x, e.y, ELEMENT_COLORS.frost.core, 1, 40, { life: 0.4, shape: 'dot', size: 1.8 });
+        this.effects.burst(e.x, e.y, ELEMENT_COLORS.frost.core, 1, 40, { life: 0.4, shape: 'dot', size: 1.8, minor: true });
       }
     }
   }
@@ -568,14 +512,14 @@ export class GameScene extends Phaser.Scene {
         const col = ELEMENT_COLORS[ev.element];
         const tipX = ev.x + Math.sin(ev.angle) * 50;
         const tipY = ev.y - Math.cos(ev.angle) * 50;
-        fx.burst(tipX, tipY, col.main, 3, 260, { angle: ev.angle, spread: 0.7, life: 0.14, size: 2.5 });
+        fx.burst(tipX, tipY, col.main, 2, 260, { angle: ev.angle, spread: 0.7, life: 0.12, size: 2.5, minor: true });
         sfx.play(SHOT_SOUND[ev.element]);
         break;
       }
       case 'hit': {
         const col = ELEMENT_COLORS[ev.element];
-        fx.burst(ev.x, ev.y, col.main, 6, 240, { life: 0.25, size: 2.5 });
-        fx.ring(ev.x, ev.y, 4, 22, col.core, 0.16, 3);
+        fx.burst(ev.x, ev.y, col.main, 4, 240, { life: 0.22, size: 2.5, minor: true });
+        fx.ring(ev.x, ev.y, 4, 22, col.core, 0.16, 3, 0, true);
         sfx.play('hit');
         break;
       }
@@ -664,7 +608,7 @@ export class GameScene extends Phaser.Scene {
         this.discover(ev.id);
         break;
       case 'bounce':
-        fx.burst(ev.x, ev.y, ELEMENT_COLORS[ev.element].main, 5, 200, { angle: ev.x < WORLD.width / 2 ? Math.PI / 2 : -Math.PI / 2, spread: 1.4, life: 0.2 });
+        fx.burst(ev.x, ev.y, ELEMENT_COLORS[ev.element].main, 4, 200, { angle: ev.x < WORLD.width / 2 ? Math.PI / 2 : -Math.PI / 2, spread: 1.4, life: 0.2, minor: true });
         break;
       case 'kill': {
         const col = ENEMY_COLORS[ev.kind];
@@ -742,10 +686,6 @@ export class GameScene extends Phaser.Scene {
         break;
       case 'upgrade':
         sfx.play('upgrade');
-        break;
-      case 'victory':
-      case 'defeat':
-        this.world.firing = false;
         break;
     }
   }

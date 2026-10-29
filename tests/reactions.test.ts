@@ -40,7 +40,7 @@ const SCENARIOS: Record<ReactionId, () => Set<ReactionId>> = {
     const { host, engine } = setup(g);
     engine.clouds.push({ id: 1, x: 300, y: 300, radius: 120, life: 2, maxLife: 2 });
     shoot(engine, 'lightning', g[0]);
-    expect(host.eventsOf('chain')[0].links.length).toBe(4);
+    expect(host.eventsOf('chain')[0].links.length).toBe(Math.min(6, ELEMENTS.lightning.chainTargets));
     return host.reactions();
   },
   freeze: () => {
@@ -196,7 +196,7 @@ const SCENARIOS: Record<ReactionId, () => Set<ReactionId>> = {
     for (const e of g) e.wet = 3;
     const { host, engine } = setup(g, { plasmaArc: 1 });
     shoot(engine, 'lightning', g[0]);
-    expect(g.filter((e) => e.burn).length).toBe(5);
+    expect(g.filter((e) => e.burn).length).toBe(Math.min(7, ELEMENTS.lightning.chainTargets + 1));
     return host.reactions();
   },
   gravityWell: () => {

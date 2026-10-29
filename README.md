@@ -6,7 +6,8 @@ You choose the elements and upgrades, and then one shot sets off the whole react
 **Play:** https://johngurley80.github.io/cascade/
 
 Hold the red line across **15 waves in three acts**, each ending with a boss. Pick your starting element,
-collect up to four of the seven, and find all **24 reactions** for the codex. Wet a crowd with **Water**, then
+collect up to five of the seven, and every element you carry fires at once from its own barrel, so reactions
+set themselves off across huge crowds. Find all **24 reactions** for the codex. Wet a crowd with **Water**, then
 flash it into **Steam** with **Fire**, freeze it with **Frost** and **Shatter** it, or pull it into a **Void**
 singularity and arc **Lightning** through everything inside. After your first win, **Endless** mode opens up.
 
@@ -15,8 +16,7 @@ singularity and arc **Lightning** through everything inside. After your first wi
 | Action | Desktop | Touch |
 | --- | --- | --- |
 | Aim | Move the mouse | Drag |
-| Fire | Hold the mouse button (or Space) | Hold your finger down |
-| Switch element | `1`–`4`, mouse wheel, `Q` / `E`, or the element buttons | Tap the element buttons |
+| Fire | Automatic: every element fires on its own | Automatic |
 | Pick a card | Click, or `1`–`7`; `R` rerolls once per run | Tap |
 | Pause | `P` / `Esc`, or the pause button | Pause button |
 | Restart (results screen) | `R` | Play again |
@@ -37,8 +37,10 @@ saved between waves, so **Continue** on the title screen picks up where you left
 | Toxin | Amplify | Poison deals damage over time, makes enemies take +30% damage and eats shields |
 | Void | Control | Opens a singularity that drags enemies in, then collapses |
 
-You start by picking any one element. After waves 1, 4 and 8 you choose another from three offers, and at least
-one of those always reacts with an element you already carry. A run holds at most four elements.
+You start by picking any one element. After waves 1, 3, 6 and 10 you choose another from three offers, and at least
+one of those always reacts with an element you already carry. A run holds at most five elements. They all fire at
+once, each at its own rate, fanned slightly around your aim. Enemies that would react with one of your elements
+glow in that element's colour.
 
 ## Reactions
 
@@ -88,7 +90,11 @@ Bosses:
 - **The Aegis** ends Act II. Direct hits glance off it, so use reactions.
 - **The Monolith** ends Act III. It speeds up when wounded.
 
-Clearing an act restores one health. In Endless mode, waves keep scaling and the bosses return stronger.
+Waves are big and get bigger: formations grow, enemies speed up, and from wave 3 each wave has a second phase
+(from wave 8, a third). When the crowd thins out, the next group arrives early. Clearing an act restores one
+health. In Endless mode, waves keep scaling and the bosses return stronger.
+
+The music speeds up as enemies close in on the line.
 
 ## Scoring
 
@@ -136,7 +142,8 @@ saved to records.
 src/
   config.ts              all tuning values (damage, health, radii, caps, fire rates, spawn spacing, music)
   logic/                 pure TypeScript, no Phaser imports
-    world.ts             fixed-step simulation: firing, projectiles, enemies, waves, bosses, upgrades, saves
+    world.ts             fixed-step simulation: auto-fire barrels, projectiles, enemies, waves, bosses, upgrades, saves
+    spatial.ts           uniform grid for fast neighbour queries (collisions, blasts, separation)
     reactions.ts         the reaction table, element effects, fields (steam clouds, singularities), cascades
     status.ts            wet / burn / poison / chill / freeze statuses
     damage.ts            damage application and one-time defeat rewards
@@ -144,7 +151,7 @@ src/
     waves.ts             15 authored waves, endless generator, seeded spawn schedule, completion tracking
     codex.ts             reaction descriptions and element partners
     records.ts params.ts summary.ts rng.ts
-  render/                Phaser drawing: arena, enemies, fields, projectiles, particle/bolt/ripple effects
+  render/                Phaser drawing: arena, enemies, fields; projectiles and particles are pooled, tinted sprites
   ui/                    HUD, upgrade cards, menus, cascade replay, buttons, icons, theme
   audio/Sfx.ts           Web Audio sound effects (no audio files)
   audio/Music.ts         procedural synthwave soundtrack with intensity layers and a boss mode
@@ -160,7 +167,8 @@ never affects the run. Collisions use simple circle overlap; Arcade physics isn'
 ### Bounded propagation
 
 Every projectile impact starts a *cascade* with its own ID. Each blast is one generation deeper than whatever
-triggered it, and nothing beyond generation 4 is created (Catalyst raises the limit to 5). This applies to steam,
+triggered it, and nothing beyond generation 6 is created (Catalyst raises the limit to 8). Blasts grow by 8% in
+radius and 15% in damage with each generation, so long cascades build to a crescendo. This applies to steam,
 flashover, ignition, shatter, overload, detonation, singularity collapse and storm relay. Burns and poisons
 remember the generation that applied them, so a defeat by damage over time stays within the same budget. Each
 reaction keeps a visited set, so it damages an enemy at most once. Enemies are marked dead on the hit that kills

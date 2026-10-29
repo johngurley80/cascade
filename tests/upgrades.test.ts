@@ -53,9 +53,9 @@ describe('elements', () => {
     }
   });
 
-  it('never allows a fifth element', () => {
+  it('never allows more elements than slots', () => {
     const loadout = createLoadout();
-    for (const e of ['fire', 'water', 'frost', 'wind'] as const) applyUpgrade(loadout, e, ctx);
+    for (const e of ['fire', 'water', 'frost', 'wind', 'toxin'] as const) applyUpgrade(loadout, e, ctx);
     expect(isAvailable(loadout, 'void', ctx)).toBe(false);
     expect(() => applyUpgrade(loadout, 'void', ctx)).toThrow();
   });
@@ -108,7 +108,7 @@ describe('modifier offers', () => {
   });
 
   it('reroll replaces a modifier offer once per run', () => {
-    const world = new World({ seed: 5 });
+    const world = new World({ autoFire: false, seed: 5 });
     world.chooseUpgrade(world.offer.indexOf('fire'));
     // Clear wave 1 quickly.
     let guard = 0;

@@ -37,170 +37,201 @@ export interface WaveDef {
  */
 export const WAVE_DEFS: WaveDef[] = [
   // ── Act I ──────────────────────────────────────────────────────────────
-  // 1 — One element. Gentle rows, then small clusters.
+  // 1 — One element. Rows, then the first clusters.
   {
     groups: [
-      { at: 0, kind: 'basic', formation: 'row', count: 4 },
-      { at: 5, kind: 'basic', formation: 'row', count: 5 },
-      { at: 10, kind: 'basic', formation: 'cluster', count: 5, place: 'left' },
-      { at: 15, kind: 'basic', formation: 'cluster', count: 5, place: 'right' },
-      { at: 21, kind: 'basic', formation: 'staggered', count: 8, rows: 2 },
+      { at: 0, kind: 'basic', formation: 'row', count: 5 },
+      { at: 6, kind: 'basic', formation: 'staggered', count: 10, rows: 2 },
+      { at: 13, kind: 'basic', formation: 'cluster', count: 7, place: 'left' },
+      { at: 18, kind: 'basic', formation: 'cluster', count: 7, place: 'right' },
+      { at: 25, kind: 'fast', formation: 'vee', count: 5 },
+      { at: 30, kind: 'basic', formation: 'cluster', count: 12, place: 'centre' },
+      { at: 38, kind: 'basic', formation: 'staggered', count: 12, rows: 2 },
     ],
   },
-  // 2 — Second element arrives. Dense clusters invite the first big combination.
+  // 2 — Two elements. Big, dense crowds for the first real cascades.
   {
     groups: [
-      { at: 0, kind: 'basic', formation: 'cluster', count: 7, place: 'centre' },
-      { at: 6, kind: 'basic', formation: 'cluster', count: 7, place: 'left' },
-      { at: 10, kind: 'fast', formation: 'column', count: 4, place: 'right' },
-      { at: 14, kind: 'basic', formation: 'cluster', count: 10, place: 'centre' },
-      { at: 21, kind: 'basic', formation: 'staggered', count: 12, rows: 3 },
-      { at: 27, kind: 'fast', formation: 'vee', count: 5 },
+      { at: 0, kind: 'basic', formation: 'cluster', count: 19, place: 'centre' },
+      { at: 7, kind: 'basic', formation: 'cluster', count: 14, place: 'left' },
+      { at: 9, kind: 'fast', formation: 'column', count: 6, place: 'right' },
+      { at: 14, kind: 'basic', formation: 'staggered', count: 24, rows: 3 },
+      { at: 22, kind: 'basic', formation: 'cluster', count: 19, place: 'right' },
+      { at: 27, kind: 'fast', formation: 'vee', count: 9 },
+      { at: 32, kind: 'basic', formation: 'cluster', count: 24, place: 'centre' },
+      { at: 41, kind: 'basic', formation: 'staggered', count: 24, rows: 3 },
     ],
   },
   // 3 — Splitters: defeating one makes two more targets.
   {
     groups: [
-      { at: 0, kind: 'basic', formation: 'cluster', count: 9, core: 'tank', place: 'centre' },
-      { at: 7, kind: 'splitter', formation: 'row', count: 4 },
-      { at: 12, kind: 'fast', formation: 'column', count: 4, place: 'left' },
-      { at: 13, kind: 'fast', formation: 'column', count: 4, place: 'right' },
-      { at: 17, kind: 'basic', formation: 'staggered', count: 15, rows: 3 },
-      { at: 25, kind: 'splitter', formation: 'cluster', count: 6, place: 'centre' },
+      { at: 0, kind: 'basic', formation: 'cluster', count: 19, core: 'tank', place: 'centre' },
+      { at: 7, kind: 'splitter', formation: 'staggered', count: 10, rows: 2 },
+      { at: 13, kind: 'fast', formation: 'column', count: 6, place: 'left' },
+      { at: 14, kind: 'fast', formation: 'column', count: 6, place: 'right' },
+      { at: 19, kind: 'basic', formation: 'staggered', count: 30, rows: 4 },
+      { at: 28, kind: 'splitter', formation: 'cluster', count: 12, place: 'any' },
+      { at: 34, kind: 'basic', formation: 'cluster', count: 24, core: 'tank', coreCount: 2, place: 'centre' },
+      { at: 43, kind: 'basic', formation: 'cluster', count: 19, place: 'any' },
     ],
   },
-  // 4 — Volatiles explode when defeated: hide them inside crowds.
+  // 4 — Volatiles explode when defeated: buried in crowds they set off chains.
   {
     groups: [
-      { at: 0, kind: 'basic', formation: 'cluster', count: 10, core: 'volatile', coreCount: 3, place: 'left' },
-      { at: 4, kind: 'basic', formation: 'cluster', count: 10, core: 'volatile', coreCount: 3, place: 'right' },
-      { at: 11, kind: 'fast', formation: 'vee', count: 7 },
-      { at: 15, kind: 'splitter', formation: 'staggered', count: 8, rows: 2 },
-      { at: 22, kind: 'volatile', formation: 'cluster', count: 7, place: 'centre' },
-      { at: 26, kind: 'tank', formation: 'row', count: 3 },
+      { at: 0, kind: 'basic', formation: 'cluster', count: 19, core: 'volatile', coreCount: 4, place: 'left' },
+      { at: 4, kind: 'basic', formation: 'cluster', count: 19, core: 'volatile', coreCount: 4, place: 'right' },
+      { at: 12, kind: 'fast', formation: 'vee', count: 11 },
+      { at: 17, kind: 'splitter', formation: 'staggered', count: 14, rows: 2 },
+      { at: 24, kind: 'volatile', formation: 'cluster', count: 14, place: 'centre' },
+      { at: 30, kind: 'tank', formation: 'row', count: 5 },
+      { at: 34, kind: 'basic', formation: 'cluster', count: 30, core: 'volatile', coreCount: 6, place: 'centre' },
+      { at: 44, kind: 'basic', formation: 'staggered', count: 28, rows: 4 },
     ],
   },
   // 5 — Boss: the Hive sheds splitlings as it takes damage.
   {
     groups: [
-      { at: 0, kind: 'basic', formation: 'staggered', count: 12, rows: 2 },
-      { at: 6, kind: 'basic', formation: 'cluster', count: 9, core: 'volatile', coreCount: 2, place: 'left' },
-      { at: 7, kind: 'basic', formation: 'cluster', count: 9, core: 'tank', place: 'right' },
-      { at: 14, kind: 'hive', formation: 'row', count: 1, place: 'centre' },
+      { at: 0, kind: 'basic', formation: 'staggered', count: 24, rows: 3 },
+      { at: 7, kind: 'basic', formation: 'cluster', count: 19, core: 'volatile', coreCount: 3, place: 'left' },
+      { at: 8, kind: 'basic', formation: 'cluster', count: 19, core: 'tank', place: 'right' },
+      { at: 16, kind: 'hive', formation: 'row', count: 1, place: 'centre' },
+      { at: 24, kind: 'basic', formation: 'cluster', count: 19, place: 'any' },
+      { at: 36, kind: 'basic', formation: 'cluster', count: 19, place: 'any' },
     ],
   },
   // ── Act II ─────────────────────────────────────────────────────────────
   // 6 — Shields block direct hits: break them with reactions or poison.
   {
     groups: [
-      { at: 0, kind: 'basic', formation: 'cluster', count: 10, place: 'centre', traits: ['shield'] },
-      { at: 7, kind: 'fast', formation: 'column', count: 5, place: 'left' },
-      { at: 9, kind: 'basic', formation: 'staggered', count: 12, rows: 2, traits: ['shield'], traitEvery: 2 },
-      { at: 17, kind: 'splitter', formation: 'cluster', count: 7, place: 'right' },
-      { at: 23, kind: 'basic', formation: 'cluster', count: 12, core: 'tank', place: 'centre', traits: ['shield'], traitEvery: 3 },
+      { at: 0, kind: 'basic', formation: 'cluster', count: 24, place: 'centre', traits: ['shield'], traitEvery: 4 },
+      { at: 8, kind: 'fast', formation: 'column', count: 8, place: 'left' },
+      { at: 10, kind: 'basic', formation: 'staggered', count: 28, rows: 4, traits: ['shield'], traitEvery: 6 },
+      { at: 19, kind: 'splitter', formation: 'cluster', count: 12, place: 'right' },
+      { at: 26, kind: 'basic', formation: 'cluster', count: 30, core: 'tank', coreCount: 2, place: 'centre' },
+      { at: 36, kind: 'basic', formation: 'cluster', count: 24, core: 'volatile', coreCount: 4, place: 'any' },
+      { at: 45, kind: 'fast', formation: 'vee', count: 11 },
     ],
   },
   // 7 — Insulated enemies stop lightning chains.
   {
     groups: [
-      { at: 0, kind: 'basic', formation: 'staggered', count: 15, rows: 3, traits: ['insulated'], traitEvery: 4 },
-      { at: 8, kind: 'basic', formation: 'cluster', count: 10, core: 'volatile', coreCount: 3, place: 'left' },
-      { at: 10, kind: 'fast', formation: 'vee', count: 7 },
-      { at: 16, kind: 'tank', formation: 'row', count: 4, traits: ['insulated'] },
-      { at: 22, kind: 'basic', formation: 'cluster', count: 12, place: 'right', traits: ['shield'], traitEvery: 3 },
+      { at: 0, kind: 'basic', formation: 'staggered', count: 30, rows: 4, traits: ['insulated'], traitEvery: 7 },
+      { at: 9, kind: 'basic', formation: 'cluster', count: 24, core: 'volatile', coreCount: 5, place: 'left' },
+      { at: 11, kind: 'fast', formation: 'vee', count: 11 },
+      { at: 18, kind: 'tank', formation: 'staggered', count: 8, rows: 2 },
+      { at: 25, kind: 'basic', formation: 'cluster', count: 30, place: 'right', traits: ['shield'], traitEvery: 6 },
+      { at: 35, kind: 'splitter', formation: 'staggered', count: 16, rows: 2 },
+      { at: 44, kind: 'basic', formation: 'cluster', count: 30, place: 'centre' },
     ],
   },
   // 8 — Fireproof enemies resist burning.
   {
     groups: [
-      { at: 0, kind: 'basic', formation: 'cluster', count: 12, core: 'tank', place: 'centre', traits: ['fireproof'], traitEvery: 2 },
-      { at: 7, kind: 'splitter', formation: 'staggered', count: 8, rows: 2 },
-      { at: 12, kind: 'fast', formation: 'column', count: 6, place: 'left' },
-      { at: 12, kind: 'fast', formation: 'column', count: 6, place: 'right' },
-      { at: 18, kind: 'volatile', formation: 'cluster', count: 9, place: 'centre', traits: ['fireproof'], traitEvery: 3 },
-      { at: 25, kind: 'basic', formation: 'staggered', count: 16, rows: 4, traits: ['shield'], traitEvery: 4 },
+      { at: 0, kind: 'basic', formation: 'cluster', count: 30, core: 'tank', coreCount: 2, place: 'centre', traits: ['fireproof'], traitEvery: 5 },
+      { at: 8, kind: 'splitter', formation: 'staggered', count: 16, rows: 2 },
+      { at: 14, kind: 'fast', formation: 'column', count: 8, place: 'left' },
+      { at: 14, kind: 'fast', formation: 'column', count: 8, place: 'right' },
+      { at: 21, kind: 'volatile', formation: 'cluster', count: 19, place: 'any' },
+      { at: 28, kind: 'basic', formation: 'staggered', count: 32, rows: 4, traits: ['shield'], traitEvery: 8 },
+      { at: 38, kind: 'basic', formation: 'cluster', count: 30, core: 'volatile', coreCount: 5, place: 'any' },
     ],
   },
   // 9 — Elites: bigger, tougher, worth much more.
   {
     groups: [
-      { at: 0, kind: 'basic', formation: 'cluster', count: 12, place: 'left', elites: 1 },
-      { at: 4, kind: 'basic', formation: 'cluster', count: 12, place: 'right', elites: 1, traits: ['shield'], traitEvery: 3 },
-      { at: 12, kind: 'fast', formation: 'vee', count: 9 },
-      { at: 16, kind: 'tank', formation: 'staggered', count: 6, rows: 2, elites: 1 },
-      { at: 23, kind: 'basic', formation: 'cluster', count: 14, core: 'volatile', coreCount: 4, place: 'centre' },
+      { at: 0, kind: 'basic', formation: 'cluster', count: 30, place: 'left', elites: 1 },
+      { at: 5, kind: 'basic', formation: 'cluster', count: 30, place: 'right', elites: 1, traits: ['shield'], traitEvery: 7 },
+      { at: 14, kind: 'fast', formation: 'vee', count: 13 },
+      { at: 19, kind: 'tank', formation: 'staggered', count: 10, rows: 2, elites: 1 },
+      { at: 26, kind: 'basic', formation: 'cluster', count: 37, core: 'volatile', coreCount: 7, place: 'centre' },
+      { at: 37, kind: 'splitter', formation: 'cluster', count: 19, place: 'any', elites: 1 },
+      { at: 46, kind: 'basic', formation: 'staggered', count: 32, rows: 4 },
     ],
   },
   // 10 — Boss: the Aegis shrugs off direct hits. Reactions are the way through.
   {
     groups: [
-      { at: 0, kind: 'basic', formation: 'cluster', count: 12, core: 'volatile', coreCount: 3, place: 'centre' },
-      { at: 7, kind: 'basic', formation: 'staggered', count: 12, rows: 2, traits: ['shield'], traitEvery: 2 },
-      { at: 15, kind: 'aegis', formation: 'row', count: 1, place: 'centre' },
+      { at: 0, kind: 'basic', formation: 'cluster', count: 30, core: 'volatile', coreCount: 5, place: 'centre' },
+      { at: 8, kind: 'basic', formation: 'staggered', count: 28, rows: 4, traits: ['shield'], traitEvery: 5 },
+      { at: 17, kind: 'aegis', formation: 'row', count: 1, place: 'centre' },
+      { at: 26, kind: 'basic', formation: 'cluster', count: 24, place: 'any' },
+      { at: 38, kind: 'basic', formation: 'cluster', count: 24, core: 'volatile', coreCount: 4, place: 'any' },
     ],
   },
   // ── Act III ────────────────────────────────────────────────────────────
   // 11
   {
     groups: [
-      { at: 0, kind: 'basic', formation: 'staggered', count: 18, rows: 3, traits: ['insulated'], traitEvery: 5 },
-      { at: 7, kind: 'splitter', formation: 'cluster', count: 8, place: 'left', elites: 1 },
-      { at: 9, kind: 'volatile', formation: 'cluster', count: 8, place: 'right' },
-      { at: 16, kind: 'fast', formation: 'vee', count: 9 },
-      { at: 21, kind: 'basic', formation: 'cluster', count: 14, core: 'tank', coreCount: 2, place: 'centre', traits: ['shield'], traitEvery: 3 },
+      { at: 0, kind: 'basic', formation: 'staggered', count: 36, rows: 4, traits: ['insulated'], traitEvery: 8 },
+      { at: 8, kind: 'splitter', formation: 'cluster', count: 19, place: 'left', elites: 1 },
+      { at: 10, kind: 'volatile', formation: 'cluster', count: 19, place: 'right' },
+      { at: 18, kind: 'fast', formation: 'vee', count: 13 },
+      { at: 23, kind: 'basic', formation: 'cluster', count: 37, core: 'tank', coreCount: 3, place: 'centre', traits: ['shield'], traitEvery: 7 },
+      { at: 34, kind: 'basic', formation: 'cluster', count: 30, core: 'volatile', coreCount: 6, place: 'any' },
+      { at: 44, kind: 'fast', formation: 'column', count: 10, place: 'any' },
+      { at: 47, kind: 'basic', formation: 'staggered', count: 32, rows: 4 },
     ],
   },
   // 12
   {
     groups: [
-      { at: 0, kind: 'basic', formation: 'cluster', count: 12, core: 'tank', place: 'left', traits: ['fireproof'], traitEvery: 2 },
-      { at: 2, kind: 'basic', formation: 'cluster', count: 12, core: 'volatile', coreCount: 3, place: 'right' },
-      { at: 10, kind: 'tank', formation: 'row', count: 5, elites: 1 },
-      { at: 15, kind: 'fast', formation: 'column', count: 7, place: 'left' },
-      { at: 15, kind: 'fast', formation: 'column', count: 7, place: 'right' },
-      { at: 22, kind: 'splitter', formation: 'staggered', count: 12, rows: 3 },
+      { at: 0, kind: 'basic', formation: 'cluster', count: 30, core: 'tank', coreCount: 2, place: 'left', traits: ['fireproof'], traitEvery: 5 },
+      { at: 3, kind: 'basic', formation: 'cluster', count: 30, core: 'volatile', coreCount: 6, place: 'right' },
+      { at: 12, kind: 'tank', formation: 'staggered', count: 10, rows: 2, elites: 1 },
+      { at: 18, kind: 'fast', formation: 'column', count: 10, place: 'left' },
+      { at: 18, kind: 'fast', formation: 'column', count: 10, place: 'right' },
+      { at: 25, kind: 'splitter', formation: 'staggered', count: 24, rows: 3 },
+      { at: 35, kind: 'basic', formation: 'cluster', count: 37, place: 'centre', elites: 1 },
+      { at: 46, kind: 'volatile', formation: 'cluster', count: 24, place: 'any' },
     ],
   },
   // 13
   {
     groups: [
-      { at: 0, kind: 'basic', formation: 'staggered', count: 20, rows: 4, traits: ['shield'], traitEvery: 3 },
-      { at: 9, kind: 'volatile', formation: 'cluster', count: 10, place: 'centre', elites: 1 },
-      { at: 14, kind: 'basic', formation: 'cluster', count: 12, place: 'left', traits: ['insulated'], traitEvery: 3 },
-      { at: 16, kind: 'splitter', formation: 'cluster', count: 9, place: 'right' },
-      { at: 24, kind: 'tank', formation: 'staggered', count: 7, rows: 2, elites: 2 },
+      { at: 0, kind: 'basic', formation: 'staggered', count: 40, rows: 5, traits: ['shield'], traitEvery: 6 },
+      { at: 10, kind: 'volatile', formation: 'cluster', count: 24, place: 'centre', elites: 1 },
+      { at: 16, kind: 'basic', formation: 'cluster', count: 30, place: 'left', traits: ['insulated'], traitEvery: 6 },
+      { at: 18, kind: 'splitter', formation: 'cluster', count: 19, place: 'right' },
+      { at: 27, kind: 'tank', formation: 'staggered', count: 12, rows: 2, elites: 2 },
+      { at: 36, kind: 'basic', formation: 'cluster', count: 37, core: 'volatile', coreCount: 8, place: 'any' },
+      { at: 47, kind: 'fast', formation: 'vee', count: 15 },
     ],
   },
   // 14 — The big swarm before the last boss.
   {
     groups: [
-      { at: 0, kind: 'basic', formation: 'cluster', count: 16, core: 'volatile', coreCount: 4, place: 'left' },
-      { at: 2, kind: 'basic', formation: 'cluster', count: 16, core: 'tank', coreCount: 2, place: 'right', traits: ['shield'], traitEvery: 4 },
-      { at: 11, kind: 'fast', formation: 'vee', count: 11, elites: 1 },
-      { at: 16, kind: 'splitter', formation: 'staggered', count: 12, rows: 3, traits: ['fireproof'], traitEvery: 3 },
-      { at: 23, kind: 'basic', formation: 'staggered', count: 20, rows: 4, elites: 2 },
+      { at: 0, kind: 'basic', formation: 'cluster', count: 37, core: 'volatile', coreCount: 7, place: 'left' },
+      { at: 3, kind: 'basic', formation: 'cluster', count: 37, core: 'tank', coreCount: 3, place: 'right', traits: ['shield'], traitEvery: 8 },
+      { at: 13, kind: 'fast', formation: 'vee', count: 15, elites: 1 },
+      { at: 19, kind: 'splitter', formation: 'staggered', count: 24, rows: 3, traits: ['fireproof'], traitEvery: 5 },
+      { at: 27, kind: 'basic', formation: 'staggered', count: 40, rows: 5, elites: 2 },
+      { at: 38, kind: 'basic', formation: 'cluster', count: 37, core: 'volatile', coreCount: 8, place: 'centre' },
+      { at: 48, kind: 'fast', formation: 'column', count: 12, place: 'any' },
     ],
   },
   // 15 — Final boss: the Monolith, escorted by elites.
   {
     groups: [
-      { at: 0, kind: 'basic', formation: 'cluster', count: 14, core: 'volatile', coreCount: 3, place: 'centre', elites: 1 },
-      { at: 8, kind: 'tank', formation: 'row', count: 4, elites: 1 },
-      { at: 16, kind: 'monolith', formation: 'row', count: 1, place: 'centre' },
+      { at: 0, kind: 'basic', formation: 'cluster', count: 30, core: 'volatile', coreCount: 5, place: 'centre', elites: 1 },
+      { at: 9, kind: 'tank', formation: 'staggered', count: 8, rows: 2, elites: 1 },
+      { at: 17, kind: 'monolith', formation: 'row', count: 1, place: 'centre' },
+      { at: 25, kind: 'basic', formation: 'cluster', count: 30, place: 'any' },
+      { at: 37, kind: 'basic', formation: 'cluster', count: 30, core: 'volatile', coreCount: 5, place: 'any' },
+      { at: 49, kind: 'basic', formation: 'staggered', count: 32, rows: 4 },
     ],
   },
 ];
 
 /** Building blocks for generated endless waves. */
 const ENDLESS_GROUPS: Omit<GroupDef, 'at'>[] = [
-  { kind: 'basic', formation: 'cluster', count: 14, core: 'volatile', coreCount: 3, place: 'any' },
-  { kind: 'basic', formation: 'staggered', count: 18, rows: 3, traits: ['shield'], traitEvery: 3 },
-  { kind: 'splitter', formation: 'cluster', count: 9, place: 'any', elites: 1 },
-  { kind: 'fast', formation: 'vee', count: 11 },
-  { kind: 'fast', formation: 'column', count: 7, place: 'any' },
-  { kind: 'tank', formation: 'row', count: 5, elites: 1 },
-  { kind: 'volatile', formation: 'cluster', count: 10, place: 'any', traits: ['fireproof'], traitEvery: 3 },
-  { kind: 'basic', formation: 'cluster', count: 14, core: 'tank', coreCount: 2, place: 'any', traits: ['insulated'], traitEvery: 4 },
+  { kind: 'basic', formation: 'cluster', count: 37, core: 'volatile', coreCount: 7, place: 'any' },
+  { kind: 'basic', formation: 'staggered', count: 40, rows: 5, traits: ['shield'], traitEvery: 6 },
+  { kind: 'splitter', formation: 'cluster', count: 19, place: 'any', elites: 1 },
+  { kind: 'fast', formation: 'vee', count: 15 },
+  { kind: 'fast', formation: 'column', count: 12, place: 'any' },
+  { kind: 'tank', formation: 'staggered', count: 10, rows: 2, elites: 1 },
+  { kind: 'volatile', formation: 'cluster', count: 24, place: 'any', traits: ['fireproof'], traitEvery: 5 },
+  { kind: 'basic', formation: 'cluster', count: 37, core: 'tank', coreCount: 3, place: 'any', traits: ['insulated'], traitEvery: 7 },
 ];
 
 export const isBossKind = (kind: EnemyKind): boolean => BOSS_KINDS.includes(kind);
@@ -219,8 +250,13 @@ export function bossForWave(wave: number): EnemyKind {
 }
 
 export function hpMultiplierForWave(wave: number): number {
-  const base = 1 + WAVES.hpScalePerWave * (Math.min(wave, WAVES.total) - 1);
+  const w = Math.min(wave, WAVES.total) - 1;
+  const base = 1 + WAVES.hpScalePerWave * w + WAVES.hpScaleCurve * w * w;
   return wave <= WAVES.total ? base : base + WAVES.endlessHpScalePerWave * (wave - WAVES.total);
+}
+
+export function speedMultiplierForWave(wave: number): number {
+  return WAVES.speedMult * (1 + WAVES.speedGrowthPerWave * (Math.min(wave, WAVES.total + 10) - 1));
 }
 
 /** Bosses keep their own HP, growing with each endless cycle. */
@@ -232,7 +268,7 @@ export function bossHpMultiplier(wave: number): number {
 /** Generate an endless wave: a few random groups and a boss every fifth wave. */
 export function endlessWaveDef(wave: number, rng: Rng): WaveDef {
   const groups: GroupDef[] = [];
-  const count = Math.min(7, 4 + Math.floor((wave - WAVES.total) / 4));
+  const count = Math.min(9, 6 + Math.floor((wave - WAVES.total) / 4));
   let at = 0;
   const bossWave = isBossWave(wave);
   for (let i = 0; i < (bossWave ? 3 : count); i++) {
@@ -244,8 +280,35 @@ export function endlessWaveDef(wave: number, rng: Rng): WaveDef {
   return { groups };
 }
 
+const MIRROR: Record<Placement, Placement> = { left: 'right', right: 'left', centre: 'centre', any: 'any' };
+
+/**
+ * Authored waves gain a second phase from `repriseFromWave`: the same
+ * formations mirrored and a little smaller, after a short breather. Bosses
+ * aren't repeated.
+ */
+function withReprise(def: WaveDef, wave: number): WaveDef {
+  if (wave < WAVES.repriseFromWave) return def;
+  const span = Math.max(...def.groups.map((g) => g.at)) + WAVES.repriseGap;
+  const phases = wave >= WAVES.doubleRepriseFromWave ? 2 : 1;
+  const groups = [...def.groups];
+  for (let k = 1; k <= phases; k++) {
+    for (const g of def.groups) {
+      if (isBossKind(g.kind)) continue;
+      groups.push({
+        ...g,
+        at: g.at + span * k,
+        count: Math.max(1, Math.round(g.count * WAVES.repriseCountMult)),
+        // Alternate sides each phase so the same wave never plays out identically twice.
+        place: k % 2 === 1 ? MIRROR[g.place ?? 'any'] : (g.place ?? 'any'),
+      });
+    }
+  }
+  return { groups };
+}
+
 export function waveDef(wave: number, rng: Rng): WaveDef {
-  if (wave >= 1 && wave <= WAVE_DEFS.length) return WAVE_DEFS[wave - 1];
+  if (wave >= 1 && wave <= WAVE_DEFS.length) return withReprise(WAVE_DEFS[wave - 1], wave);
   return endlessWaveDef(wave, rng);
 }
 
@@ -291,8 +354,8 @@ export function formationOffsets(formation: Formation, count: number, rows = 2):
       // Hex packing, filled from the centre outwards.
       const s = WAVES.clusterSpacing;
       const cells: { dx: number; dy: number; d: number }[] = [];
-      for (let q = -3; q <= 3; q++) {
-        for (let r = -3; r <= 3; r++) {
+      for (let q = -4; q <= 4; q++) {
+        for (let r = -4; r <= 4; r++) {
           const dx = s * (q + r / 2);
           const dy = s * r * 0.866;
           cells.push({ dx, dy, d: Math.hypot(dx, dy) + Math.abs(dy) * 0.001 + dx * 0.0001 });
@@ -331,7 +394,8 @@ export function buildWaveSchedule(wave: number, rng: Rng): ScheduledGroup[] {
   const groups: ScheduledGroup[] = [];
   for (const g of def.groups) {
     const boss = isBossKind(g.kind);
-    const offsets = formationOffsets(g.formation, g.count, g.rows);
+    const count = boss ? g.count : Math.round(g.count * Math.min(WAVES.maxCountMult, 1 + WAVES.countGrowthPerWave * Math.max(0, wave - 3)));
+    const offsets = formationOffsets(g.formation, count, g.rows);
     const coreCount = g.core ? (g.coreCount ?? 1) : 0;
     const kinds: EnemyKind[] = offsets.map((_, i) => (i < coreCount && g.core ? g.core : g.kind));
     // Clusters fill from the centre, so the first members are the heart of the formation.
@@ -364,15 +428,16 @@ export function buildWaveSchedule(wave: number, rng: Rng): ScheduledGroup[] {
         cx = lo + span * rng.next();
     }
     if (span <= 0) cx = WORLD.width / 2;
-    const speed = Math.min(...kinds.map((k) => ENEMIES[k].speed));
+    const speed = Math.min(...kinds.map((k) => ENEMIES[k].speed)) * speedMultiplierForWave(wave);
     const every = g.traitEvery ?? 1;
     const spawns = offsets.map((o, i): SpawnSpec => {
       const traits = noTraits();
       if (g.traits && i % every === 0) for (const t of g.traits) traits[t] = true;
       traits.elite = elites[i];
+      const r = radiusOf(kinds[i], elites[i]);
       return {
         kind: kinds[i],
-        x: cx + o.dx,
+        x: Math.max(r + 4, Math.min(WORLD.width - r - 4, cx + o.dx)),
         y: WORLD.arenaTop - radiusOf(kinds[i], elites[i]) - 6 + o.dy,
         speed,
         hpMult: isBossKind(kinds[i]) ? bossHpMultiplier(wave) : hpMult,
@@ -432,11 +497,16 @@ export class WaveRunner {
     return this.groups.every((g) => g.spawned);
   }
 
-  /** Advance the schedule. If the arena is empty, pull the next group forward. */
-  update(dt: number, arenaEmpty: boolean): SpawnSpec[] {
+  /** Enemies the arena should hold before the next group is pulled forward. */
+  get minPopulation(): number {
+    return WAVES.minPopulationBase + WAVES.minPopulationPerWave * Math.min(this.wave, WAVES.total);
+  }
+
+  /** Advance the schedule. When the crowd thins out, pull the next group forward. */
+  update(dt: number, population: number): SpawnSpec[] {
     this.elapsed += dt;
     const next = this.groups.find((g) => !g.spawned);
-    if (next && arenaEmpty && next.at - this.elapsed > WAVES.idleSkipLead && this.elapsed > WAVES.introDelay) {
+    if (next && population < this.minPopulation && next.at - this.elapsed > WAVES.idleSkipLead && this.elapsed > WAVES.introDelay) {
       this.elapsed = next.at - WAVES.idleSkipLead;
     }
     const out: SpawnSpec[] = [];

@@ -56,7 +56,7 @@ export class UpgradePanel {
     const start = opts.kind === 'start';
     const title = start ? 'CHOOSE YOUR ELEMENT' : `WAVE ${opts.clearedWave} CLEARED`;
     const subtitle = start
-      ? 'Your first element. You can carry up to four.'
+      ? `Your first element. Every element you carry fires at once — up to ${PLAYER.elementSlots}.`
       : opts.kind === 'element'
         ? `Choose a new element (${opts.loadout.elements.length + 1} of ${PLAYER.elementSlots})`
         : 'Choose an upgrade';

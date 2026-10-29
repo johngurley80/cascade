@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { FX } from '../config';
+import { SpritePool, TEX, ensureTextures } from './textures';
 
 interface Particle {
   x: number;
@@ -47,20 +48,28 @@ interface Bolt {
 }
 
 /**
- * Lightweight, capped visual effects drawn into two Graphics layers:
- * `soft` (normal blending: steam, ripples) and `glow` (additive: sparks, bolts).
+ * Capped visual effects. Particles and flashes are pooled, tinted sprites
+ * (cheap to draw in bulk); rings and lightning bolts are vector lines drawn
+ * into `soft` (below enemies) and `glow` (above enemies).
  */
 export class Effects {
   private particles: Particle[] = [];
   private rings: Ring[] = [];
   private bolts: Bolt[] = [];
   private flashes: Flash[] = [];
+  private readonly softSprites: SpritePool;
+  private readonly glowSprites: SpritePool;
   reduced = false;
 
   constructor(
+    scene: Phaser.Scene,
     private readonly soft: Phaser.GameObjects.Graphics,
     private readonly glow: Phaser.GameObjects.Graphics,
-  ) {}
+  ) {
+    ensureTextures(scene);
+    this.softSprites = new SpritePool(scene, soft.depth + 0.5);
+    this.glowSprites = new SpritePool(scene, glow.depth + 0.5);
+  }
 
   clear(): void {
     this.particles.length = 0;
@@ -75,9 +84,11 @@ export class Effects {
     this.flashes.push({ x, y, r, life: duration, max: duration, color });
   }
 
-  private budget(n: number): number {
+  /** Minor effects (shots, hits) only get a share of the budget, so big reactions always have room. */
+  private budget(n: number, minor: boolean): number {
     const scaled = this.reduced ? Math.ceil(n * FX.reducedParticleMult) : n;
-    return Math.max(0, Math.min(scaled, FX.maxParticles - this.particles.length));
+    const cap = minor ? FX.maxParticles * FX.minorParticleShare : FX.maxParticles;
+    return Math.max(0, Math.min(scaled, Math.floor(cap) - this.particles.length));
   }
 
   burst(
@@ -86,9 +97,9 @@ export class Effects {
     color: number,
     count: number,
     speed: number,
-    opts: Partial<Pick<Particle, 'size' | 'drag' | 'gravity' | 'shape'>> & { life?: number; spread?: number; angle?: number } = {},
+    opts: Partial<Pick<Particle, 'size' | 'drag' | 'gravity' | 'shape'>> & { life?: number; spread?: number; angle?: number; minor?: boolean } = {},
   ): void {
-    const n = this.budget(count);
+    const n = this.budget(count, !!opts.minor);
     const spread = opts.spread ?? Math.PI * 2;
     const base = opts.angle ?? 0;
     for (let i = 0; i < n; i++) {
@@ -112,8 +123,9 @@ export class Effects {
     }
   }
 
-  ring(x: number, y: number, r0: number, r1: number, color: number, duration: number = FX.rippleDuration, width = 4, fill = 0): void {
-    if (this.rings.length > 80) this.rings.shift();
+  ring(x: number, y: number, r0: number, r1: number, color: number, duration: number = FX.rippleDuration, width = 4, fill = 0, minor = false): void {
+    if (minor && this.rings.length > 40) return;
+    if (this.rings.length > 90) this.rings.shift();
     this.rings.push({ x, y, r0, r1, life: duration, max: duration, color, width, fill });
   }
 
@@ -184,38 +196,47 @@ export class Effects {
       glow.strokeCircle(r.x, r.y, radius);
     }
 
+    const sp = this.softSprites;
+    const gp = this.glowSprites;
+    sp.begin();
+    gp.begin();
     for (const f of this.flashes) {
       const t = 1 - f.life / f.max;
-      glow.fillStyle(f.color, 0.75 * (1 - t));
-      glow.fillCircle(f.x, f.y, f.r * (0.6 + 0.5 * t));
-      glow.fillStyle(0xffffff, 0.8 * (1 - t));
-      glow.fillCircle(f.x, f.y, f.r * 0.35 * (1 - t * 0.5));
+      const r = f.r * (0.6 + 0.5 * t);
+      gp.next(TEX.dot).setPosition(f.x, f.y).setDisplaySize(r * 2.4, r * 2.4).setTint(f.color).setAlpha(0.85 * (1 - t)).setRotation(0);
+      const c = f.r * 0.8 * (1 - t * 0.5);
+      gp.next(TEX.dot).setPosition(f.x, f.y).setDisplaySize(c, c).setTint(0xffffff).setAlpha(0.9 * (1 - t)).setRotation(0);
     }
 
     for (const p of this.particles) {
       const a = p.life / p.max;
       if (p.shape === 'puff') {
-        soft.fillStyle(p.color, 0.55 * a);
-        soft.fillCircle(p.x, p.y, p.size * (2 - a));
+        const d = p.size * (2 - a) * 2.6;
+        sp.next(TEX.puff).setPosition(p.x, p.y).setDisplaySize(d, d).setTint(p.color).setAlpha(0.42 * a).setRotation(0);
       } else if (p.shape === 'shard') {
-        const ang = p.spin * (p.max - p.life) + p.spin;
-        const sz = p.size * (0.6 + 0.4 * a);
-        const c = Math.cos(ang);
-        const sn = Math.sin(ang);
-        glow.fillStyle(p.color, Math.min(1, a * 1.4));
-        glow.fillTriangle(
-          p.x + c * sz, p.y + sn * sz,
-          p.x - c * sz * 0.6 - sn * sz * 0.7, p.y - sn * sz * 0.6 + c * sz * 0.7,
-          p.x - c * sz * 0.6 + sn * sz * 0.7, p.y - sn * sz * 0.6 - c * sz * 0.7,
-        );
+        const sz = p.size * (0.6 + 0.4 * a) * 2;
+        gp.next(TEX.shard)
+          .setPosition(p.x, p.y)
+          .setDisplaySize(sz, sz)
+          .setTint(p.color)
+          .setAlpha(Math.min(1, a * 1.4))
+          .setRotation(p.spin * (p.max - p.life) + p.spin);
       } else if (p.shape === 'dot') {
-        glow.fillStyle(p.color, a);
-        glow.fillCircle(p.x, p.y, p.size * (0.5 + a * 0.5));
+        const d = p.size * (0.5 + a * 0.5) * 2.6;
+        gp.next(TEX.dot).setPosition(p.x, p.y).setDisplaySize(d, d).setTint(p.color).setAlpha(a).setRotation(0);
       } else {
-        glow.lineStyle(p.size * a + 0.5, p.color, a);
-        glow.lineBetween(p.x, p.y, p.x - p.vx * 0.03, p.y - p.vy * 0.03);
+        const len = Math.max(6, Math.hypot(p.vx, p.vy) * 0.035);
+        gp.next(TEX.spark)
+          .setPosition(p.x, p.y)
+          .setOrigin(1, 0.5)
+          .setDisplaySize(len, Math.max(2, p.size * a * 1.6 + 1))
+          .setTint(p.color)
+          .setAlpha(a)
+          .setRotation(Math.atan2(p.vy, p.vx));
       }
     }
+    sp.end();
+    gp.end();
 
     for (const b of this.bolts) {
       const a = b.life / b.max;

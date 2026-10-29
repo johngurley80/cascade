@@ -41,6 +41,7 @@ export class TitleScene extends Phaser.Scene {
     this.panel = null;
     music.setIntensity(0);
     music.setBoss(false);
+    music.setTempo(0);
     this.cameras.main.setBackgroundColor(COLORS.arena);
     this.deco = this.add.graphics();
     this.drifters = [];
@@ -205,8 +206,8 @@ export class TitleScene extends Phaser.Scene {
     left(x0 + 26, y + 32, 'HOW TO PLAY', COLORS.textDim, 17, true);
     const rows: [string, string][] = [
       ['AIM', 'Mouse  ·  or drag on touch'],
-      ['FIRE', 'Hold mouse / finger  ·  or Space'],
-      ['ELEMENT', 'Keys 1–4  ·  or tap the buttons'],
+      ['FIRE', 'Automatic — every element at once'],
+      ['ELEMENTS', 'Collect up to 5  ·  they all stack'],
       ['PAUSE', 'P / Esc  ·  or the pause button'],
     ];
     rows.forEach(([k, v], i) => {

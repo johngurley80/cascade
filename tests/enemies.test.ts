@@ -49,7 +49,7 @@ describe('enemy traits', () => {
   });
 
   it('splitters split into two splitlings that count towards the wave', () => {
-    const world = new World({ seed: 1, unlockAll: true });
+    const world = new World({ autoFire: false, seed: 1, unlockAll: true });
     world.drainEvents();
     const sp = world.spawnAt('splitter', 360, 400);
     const before = world.runner.spawned;
@@ -71,7 +71,7 @@ describe('enemy traits', () => {
   });
 
   it('elites are bigger, tougher and worth more', () => {
-    const world = new World({ seed: 1 });
+    const world = new World({ autoFire: false, seed: 1 });
     const e = world.spawnAt('basic', 300, 400, 1, { elite: true });
     expect(e.maxHp).toBeGreaterThan(ENEMIES.basic.hp * 2);
     expect(e.radius).toBeGreaterThan(ENEMIES.basic.radius);
@@ -80,14 +80,14 @@ describe('enemy traits', () => {
   });
 
   it('the Aegis boss takes reduced direct damage', () => {
-    const world = new World({ seed: 1 });
+    const world = new World({ autoFire: false, seed: 1 });
     const boss = world.spawnAt('aegis', 360, 300);
     world.reactions.projectileHit({ element: 'water', damage: 100, x: boss.x, y: boss.y }, boss);
     expect(boss.maxHp - boss.hp).toBeCloseTo(100 * BOSS.aegisDirectMult);
   });
 
   it('the Hive sheds splitlings as its health drops', () => {
-    const world = new World({ seed: 1, unlockAll: true });
+    const world = new World({ autoFire: false, seed: 1, unlockAll: true });
     const hive = world.spawnAt('hive', 360, 300);
     hive.hp = hive.maxHp * 0.4;
     world.step(1 / 60);

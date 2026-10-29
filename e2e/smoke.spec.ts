@@ -28,7 +28,7 @@ test('picks a starting element, fires, reaches the element choice and starts wav
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
 
-  await page.goto('?seed=7&speed=4');
+  await page.goto('?seed=7&speed=2');
   await expect(page.locator('canvas')).toBeVisible();
   await page.waitForTimeout(500);
   const P = await mapper(page);
@@ -45,8 +45,8 @@ test('picks a starting element, fires, reaches the element choice and starts wav
   // Aim at the enemy closest to the defence line and hold fire until the wave is cleared.
   st = await snapshot(page);
   let holding = false;
-  const deadline = Date.now() + 90_000;
-  while (st && !st.upgradeVisible && Date.now() < deadline) {
+  const deadline = Date.now() + 180_000;
+  while (st && !st.upgradeVisible && !st.resultVisible && Date.now() < deadline) {
     const visible = st.enemies.filter((e) => e.y > 110);
     if (visible.length > 0) {
       const target = visible.reduce((a, b) => (b.y > a.y ? b : a));
@@ -61,7 +61,7 @@ test('picks a starting element, fires, reaches the element choice and starts wav
   }
   if (holding) await page.mouse.up();
 
-  expect(st?.upgradeVisible).toBe(true);
+  expect(st?.upgradeVisible, `wave 1 not cleared: ${JSON.stringify({ phase: st?.phase, health: st?.health, kills: st?.kills })}`).toBe(true);
   expect(st?.kills).toBeGreaterThan(0);
   expect(st?.offerKind).toBe('element');
   expect(st?.offer).toHaveLength(3);

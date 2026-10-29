@@ -28,18 +28,19 @@ describe('lightning chaining', () => {
     expect(cascade.hits.size).toBe(3);
   });
 
-  it('chains to at most four additional wet enemies, each hit once', () => {
+  it('chains to at most the configured number of additional wet enemies, each hit once', () => {
     const origin = makeEnemy(300, 300, 'basic', 1000);
-    const others = Array.from({ length: 8 }, (_, i) => makeEnemy(300 + Math.cos(i) * 60, 300 + Math.sin(i) * 60, 'basic', 1000));
+    const others = Array.from({ length: 10 }, (_, i) => makeEnemy(300 + Math.cos(i * 0.7) * 60, 300 + Math.sin(i * 0.7) * 60, 'basic', 1000));
     for (const e of [origin, ...others]) e.wet = 5;
     const { host, engine } = setup([origin, ...others]);
     const cascade = shoot(engine, 'lightning', origin, 9);
     const chained = others.filter((e) => e.hp < 1000);
-    expect(chained).toHaveLength(4);
+    const max = ELEMENTS.lightning.chainTargets;
+    expect(chained).toHaveLength(max);
     for (const e of chained) expect(e.hp).toBe(1000 - ELEMENTS.lightning.chainDamage);
-    expect(cascade.hits.size).toBe(5);
+    expect(cascade.hits.size).toBe(max + 1);
     const links = host.eventsOf('chain')[0].links;
-    expect(new Set(links.map((l) => `${l.x2},${l.y2}`)).size).toBe(4);
+    expect(new Set(links.map((l) => `${l.x2},${l.y2}`)).size).toBe(max);
   });
 
   it('Long Chain raises the limit', () => {

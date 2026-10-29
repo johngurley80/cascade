@@ -32,11 +32,11 @@ export const PLAYER = {
   /** Health restored when an act's boss falls. */
   actClearHeal: 1,
   /** A run holds at most this many elements. */
-  elementSlots: 4,
+  elementSlots: 5,
   /** Waves after which the player picks a new element (instead of a modifier). */
-  elementPickAfterWaves: [1, 4, 8] as readonly number[],
-  /** Seconds between volleys before Rapid fire. */
-  fireInterval: 0.2,
+  elementPickAfterWaves: [1, 3, 6, 10] as readonly number[],
+  /** Every element fires automatically from its own barrel; barrels fan out by this much. */
+  barrelSpreadDeg: 4,
   /** Each Rapid fire level multiplies the interval by this. */
   rapidFireIntervalMult: 0.84,
   /** Aiming arc: ±70° from vertical. */
@@ -44,7 +44,7 @@ export const PLAYER = {
   projectileSpeed: 1000,
   projectileRadius: 7,
   /** Hard cap on live projectiles; extra volleys are skipped. */
-  maxProjectiles: 70,
+  maxProjectiles: 260,
   ricochetBounces: 2,
   splitShotAngleDeg: 11,
   splitShotDamageMult: 0.5,
@@ -56,30 +56,35 @@ export const PLAYER = {
 
 export const ELEMENTS = {
   fire: {
-    damage: 10,
+    /** Seconds between shots from this element's barrel. */
+    fireInterval: 0.3,
+    damage: 9,
     burnDuration: 1.8,
     burnDps: 6,
     burnTickInterval: 0.3,
   },
   water: {
-    damage: 7,
+    fireInterval: 0.28,
+    damage: 8,
     splashRadius: 82,
     /** Added splash radius per Wider splash level. */
     splashRadiusPerLevel: 32,
     wetDuration: 5.5,
   },
   lightning: {
+    fireInterval: 0.36,
     damage: 10,
     /** Max distance of one hop between wet enemies. */
     chainRange: 175,
     /** Additional wet targets beyond the first. */
-    chainTargets: 4,
+    chainTargets: 5,
     /** Extra chain targets from Long chain. */
     longChainBonus: 2,
     chainDamage: 9,
   },
   frost: {
-    damage: 8,
+    fireInterval: 0.3,
+    damage: 9,
     chillDuration: 3,
     /** Speed multiplier while chilled. */
     chillSpeedMult: 0.5,
@@ -91,7 +96,8 @@ export const ELEMENTS = {
     thermalShockBonus: 14,
   },
   wind: {
-    damage: 10,
+    fireInterval: 0.34,
+    damage: 11,
     gustRadius: 120,
     /** Max distance an enemy is pulled towards the impact in one gust. */
     gustPull: 46,
@@ -104,7 +110,8 @@ export const ELEMENTS = {
     squallRadiusMult: 1.4,
   },
   toxin: {
-    damage: 6,
+    fireInterval: 0.3,
+    damage: 7,
     poisonDuration: 4.5,
     poisonDps: 5,
     poisonTickInterval: 0.5,
@@ -115,6 +122,7 @@ export const ELEMENTS = {
     virulenceRadius: 160,
   },
   void: {
+    fireInterval: 0.9,
     damage: 6,
     singularityRadius: 112,
     singularityLife: 1.2,
@@ -124,28 +132,30 @@ export const ELEMENTS = {
     /** Event horizon: radius and life bonus per level. */
     eventHorizonRadius: 0.25,
     eventHorizonLife: 0.3,
-    maxSingularities: 6,
+    maxSingularities: 8,
   },
 } as const;
 
 export const REACTIONS = {
-  steam: { radius: 108, damage: 14, delay: 0.08, cloudLife: 2.0, cloudRadiusMult: 0.85, bigSteamMult: 1.3 },
-  flashover: { radius: 92, damage: 8, delay: 0.12 },
+  steam: { radius: 124, damage: 14, delay: 0.08, cloudLife: 2.0, cloudRadiusMult: 0.85, bigSteamMult: 1.3 },
+  flashover: { radius: 108, damage: 9, delay: 0.12 },
   stormRelay: { radius: 210, targets: 2, damage: 7, delay: 0.1 },
-  shatter: { radius: 95, damage: 16, delay: 0.06, brittleMult: 2, deepFreezeRadiusMult: 1.3 },
-  overload: { radius: 74, damage: 12, delay: 0.07 },
-  ignition: { radius: 112, damage: 18, delay: 0.1 },
-  detonation: { radius: 95, damage: 22, delay: 0.12 },
+  shatter: { radius: 110, damage: 16, delay: 0.06, brittleMult: 2, deepFreezeRadiusMult: 1.3 },
+  overload: { radius: 90, damage: 12, delay: 0.07 },
+  ignition: { radius: 130, damage: 18, delay: 0.1 },
+  detonation: { radius: 110, damage: 22, delay: 0.12 },
   steamFront: { radiusMult: 1.6, extraLife: 1.2 },
   arcStorm: { targets: 8, damage: 9 },
   gravityWell: { collapseMult: 2 },
   /** Secondary-reaction generations allowed after the originating hit. */
-  maxGeneration: 4,
+  maxGeneration: 6,
   /** Catalyst raises the generation limit by this much. */
-  catalystBonus: 1,
+  catalystBonus: 2,
   /** Hard cap on queued (not yet resolved) secondary reactions. */
-  maxPendingReactions: 64,
-  maxSteamClouds: 8,
+  maxPendingReactions: 160,
+  maxSteamClouds: 14,
+  /** Each generation deeper, blasts grow by these fractions: cascades build to a crescendo. */
+  escalation: { radiusPerGen: 0.08, damagePerGen: 0.15 },
   /** Damage records kept per cascade for the results-screen replay. */
   replayRecordCap: 160,
 } as const;
@@ -162,15 +172,15 @@ export interface EnemyStats {
 }
 
 export const ENEMIES: Record<EnemyKind, EnemyStats> = {
-  basic: { radius: 20, hp: 30, speed: 34, score: 10 },
-  fast: { radius: 14, hp: 12, speed: 72, score: 15 },
-  tank: { radius: 30, hp: 110, speed: 20, score: 30 },
-  splitter: { radius: 24, hp: 44, speed: 30, score: 20 },
-  splitling: { radius: 12, hp: 10, speed: 56, score: 5 },
-  volatile: { radius: 19, hp: 24, speed: 36, score: 20 },
-  hive: { radius: 70, hp: 1100, speed: 12, score: 400 },
-  aegis: { radius: 76, hp: 1800, speed: 11, score: 600 },
-  monolith: { radius: 86, hp: 3400, speed: 10, score: 1000 },
+  basic: { radius: 20, hp: 20, speed: 34, score: 10 },
+  fast: { radius: 14, hp: 9, speed: 72, score: 15 },
+  tank: { radius: 30, hp: 70, speed: 20, score: 30 },
+  splitter: { radius: 24, hp: 30, speed: 30, score: 20 },
+  splitling: { radius: 12, hp: 7, speed: 56, score: 5 },
+  volatile: { radius: 19, hp: 16, speed: 36, score: 20 },
+  hive: { radius: 70, hp: 2200, speed: 12, score: 400 },
+  aegis: { radius: 76, hp: 4200, speed: 11, score: 600 },
+  monolith: { radius: 86, hp: 9000, speed: 10, score: 1000 },
 };
 
 export const ELITE = {
@@ -187,7 +197,7 @@ export const SHIELD = {
 export const BOSS = {
   /** Seconds between supporting spawns. */
   supportInterval: 8.5,
-  supportCount: 3,
+  supportCount: 6,
   /** A boss crossing the line costs this much health (all of it). */
   leakDamage: 99,
   /** The Aegis boss takes only this fraction of direct projectile damage. */
@@ -207,12 +217,32 @@ export const WAVES = {
   total: 15,
   actLength: 5,
   /** Enemy HP multiplier per wave beyond the first (bosses use their own HP). */
-  hpScalePerWave: 0.12,
+  hpScalePerWave: 0.08,
+  /** Quadratic term: health ramps gently early and steeply late. */
+  hpScaleCurve: 0.03,
+  /** Formations grow by this fraction per wave from wave 4 on (crowds feed cascades). */
+  countGrowthPerWave: 0.075,
+  /** Cap on formation growth (endless waves). */
+  maxCountMult: 2,
+  /** Global enemy speed multiplier. */
+  speedMult: 1.1,
+  /** Enemies get this much faster each wave. */
+  speedGrowthPerWave: 0.025,
   /** Steeper HP scaling for endless waves beyond the normal run. */
   endlessHpScalePerWave: 0.2,
+  /** From this wave on, each wave has a second phase: its formations again, mirrored. */
+  repriseFromWave: 3,
+  /** From this wave on, a second reprise follows. */
+  doubleRepriseFromWave: 8,
+  repriseCountMult: 1,
+  /** Gap between the end of the first phase and the reprise. */
+  repriseGap: 6,
   /** Delay before the first group spawns in a wave. */
   introDelay: 1.6,
-  /** When the arena is empty, pull the next group forward to this lead time. */
+  /** Keep at least this many enemies alive: the next group arrives early when the crowd thins. */
+  minPopulationBase: 14,
+  minPopulationPerWave: 3,
+  /** When the crowd thins, pull the next group forward to this lead time. */
   idleSkipLead: 0.8,
   /** Spacing between enemies inside formations. */
   clusterSpacing: 46,
@@ -238,7 +268,9 @@ export const SCORE = {
 } as const;
 
 export const FX = {
-  maxParticles: 460,
+  maxParticles: 520,
+  /** Share of the particle budget that small, frequent effects (hits, shots) may use. */
+  minorParticleShare: 0.45,
   reducedParticleMult: 0.35,
   shakeMajor: 0.006,
   shakeDuration: 140,
@@ -252,6 +284,8 @@ export const FX = {
 
 export const MUSIC = {
   bpm: 96,
+  /** Extra tempo when enemies close in on the defence line. */
+  bpmBoost: 34,
   /** Music bus volume (0–1) relative to sound effects. */
   volume: 0.22,
   /** Brief dip applied under big reactions. */

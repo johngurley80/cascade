@@ -5,7 +5,7 @@ import { makeEnemy, setup, shoot } from './helpers';
 
 describe('bounded propagation', () => {
   it('a Flashover chain stops at the configured generation limit but still cascades', () => {
-    const line = Array.from({ length: 12 }, (_, i) => makeEnemy(60 + i * 80, 400, 'basic', 1));
+    const line = Array.from({ length: 12 }, (_, i) => makeEnemy(60 + i * 100, 400, 'basic', 1));
     const { host, engine } = setup(line, { flashover: 1 });
     for (const e of line) applyBurn(e, null, 0);
     const cascade = shoot(engine, 'fire', line[0], 10);
@@ -19,13 +19,13 @@ describe('bounded propagation', () => {
     expect(engine.pending).toHaveLength(0);
   });
 
-  it('Catalyst allows exactly one more generation', () => {
-    const line = Array.from({ length: 12 }, (_, i) => makeEnemy(60 + i * 80, 400, 'basic', 1));
+  it('Catalyst allows exactly the configured extra generations', () => {
+    const line = Array.from({ length: 12 }, (_, i) => makeEnemy(60 + i * 100, 400, 'basic', 1));
     const { host, engine } = setup(line, { flashover: 1, catalyst: 1 });
     for (const e of line) applyBurn(e, null, 0);
     shoot(engine, 'fire', line[0], 10);
     engine.flush();
-    expect(host.eventsOf('blast').filter((b) => b.kind === 'flashover').length).toBe(REACTIONS.maxGeneration + 1);
+    expect(host.eventsOf('blast').filter((b) => b.kind === 'flashover').length).toBe(REACTIONS.maxGeneration + REACTIONS.catalystBonus);
   });
 
   it('chains of shatters terminate', () => {

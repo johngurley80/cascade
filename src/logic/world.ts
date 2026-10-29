@@ -1,6 +1,7 @@
 import { BOSS, ELEMENTS, ELITE, ENEMIES, PLAYER, SCORE, SHIELD, UPGRADES, WAVES, WORLD, type EnemyKind } from '../config';
 import { awardDefeat } from './damage';
-import { ReactionEngine, type ReactionHost } from './reactions';
+import { INTERACTIONS, ReactionEngine, type ReactionHost } from './reactions';
+import { SpatialGrid } from './spatial';
 import { Rng, deriveSeed } from './rng';
 import { isBoss, speedFactor, tickStatuses } from './status';
 import {
@@ -8,7 +9,7 @@ import {
   buildElementOffer,
   buildOffer,
   createLoadout,
-  fireInterval,
+  rapidFireMult,
   offerKindAfterWave,
   unlockAll,
   type Loadout,
@@ -35,6 +36,8 @@ export interface WorldOptions {
   unlockAll?: boolean;
   /** Keep going after wave 15 with generated waves. */
   endless?: boolean;
+  /** Every owned element fires on its own whenever enemies are in the arena (default true). */
+  autoFire?: boolean;
 }
 
 export interface RunStats {
@@ -59,7 +62,6 @@ export interface RunSave {
   largestCascade: number;
   largestReplay: ReplayRecord[];
   rerollsLeft: number;
-  selected: Element;
   offer: UpgradeId[];
 }
 
@@ -82,10 +84,10 @@ export class World implements ReactionHost {
   readonly loadout: Loadout = createLoadout();
   readonly reactions: ReactionEngine;
   readonly stats: RunStats = { kills: 0, score: 0, shots: 0, leaks: 0, time: 0, wavesCleared: 0 };
-  selected: Element = 'fire';
   /** Radians from vertical; negative = left. Always within ±70°. */
   aimAngle = 0;
-  firing = false;
+  /** Whether the barrels fire on their own (tests switch this off). */
+  autoFire: boolean;
   /** Current choices while phase is 'start' or 'upgrade'. */
   offer: UpgradeId[] = [];
   rerollsLeft: number = UPGRADES.rerollsPerRun;
@@ -95,7 +97,10 @@ export class World implements ReactionHost {
   private savedLargest = 0;
 
   private events: GameEvent[] = [];
-  private cooldown = 0;
+  /** Seconds until each element's barrel fires again. */
+  private cooldowns = new Map<Element, number>();
+  private readonly grid = new SpatialGrid(64);
+  private readonly scratch: Enemy[] = [];
   private nextEnemyId = 1;
   private nextProjectileId = 1;
   private readonly bossRng: Rng;
@@ -111,13 +116,13 @@ export class World implements ReactionHost {
     this.firstWave = this.endless ? first : Math.min(first, WAVES.total);
     this.wave = this.firstWave;
     this.unlockedAll = !!opts.unlockAll;
+    this.autoFire = opts.autoFire ?? true;
     this.reactions = new ReactionEngine(this);
     this.bossRng = new Rng(deriveSeed(this.seed, 'boss'));
     this.stats.wavesCleared = this.wave - 1;
     this.runner = this.createRunner(this.wave);
     if (this.unlockedAll) {
       unlockAll(this.loadout);
-      this.selected = this.loadout.elements[0];
       this.beginWave(this.wave);
     } else {
       this.offer = buildOffer(0, this.loadout, new Rng(0), this.offerContext());
@@ -125,8 +130,8 @@ export class World implements ReactionHost {
   }
 
   /** Resume a run saved between waves (it opens on that upgrade choice). */
-  static fromSave(save: RunSave): World {
-    const world = new World({ seed: save.seed, startWave: save.clearedWave, endless: save.endless });
+  static fromSave(save: RunSave, opts: Pick<WorldOptions, 'autoFire'> = {}): World {
+    const world = new World({ seed: save.seed, startWave: save.clearedWave, endless: save.endless, ...opts });
     world.loadout.elements = [...save.elements];
     Object.assign(world.loadout.levels, save.levels);
     world.health = save.health;
@@ -135,7 +140,6 @@ export class World implements ReactionHost {
     world.reactions.stats.largestCascade = save.largestCascade;
     world.savedReplay = save.largestReplay;
     world.rerollsLeft = save.rerollsLeft;
-    world.selected = save.selected;
     world.offer = [...save.offer];
     world.phase = 'upgrade';
     world.events = [];
@@ -156,7 +160,6 @@ export class World implements ReactionHost {
       largestCascade: this.largestCascade,
       largestReplay: this.largestReplay,
       rerollsLeft: this.rerollsLeft,
-      selected: this.selected,
       offer: [...this.offer],
     };
   }
@@ -194,6 +197,26 @@ export class World implements ReactionHost {
     return { health: this.health, maxHealth: PLAYER.maxHealth, unlimitedSlots: this.unlockedAll };
   }
 
+  nearby(x: number, y: number, radius: number): Enemy[] {
+    return this.grid.query(x, y, radius, []);
+  }
+
+  /**
+   * The first owned element that would set off a reaction on this enemy right
+   * now (drawn as a soft glow, so players can see where the next cascade is).
+   */
+  primedElement(e: Enemy): Element | null {
+    if (!e.alive) return null;
+    const snap = this.reactions.snapshot(e);
+    for (const el of this.loadout.elements) {
+      for (const rule of INTERACTIONS[el]) {
+        if (rule.requires && this.loadout.levels[rule.requires] <= 0) continue;
+        if (rule.when(snap)) return el;
+      }
+    }
+    return null;
+  }
+
   emit(event: GameEvent): void {
     this.events.push(event);
   }
@@ -211,12 +234,6 @@ export class World implements ReactionHost {
     this.runner.noteResolved();
     this.emit({ type: 'kill', x: enemy.x, y: enemy.y, kind: enemy.kind, radius: enemy.radius, cause, elite: enemy.traits.elite, score });
     if (enemy.kind === 'splitter') this.queueSplit(enemy, 2);
-  }
-
-  selectElement(element: Element): boolean {
-    if (!this.loadout.elements.includes(element)) return false;
-    this.selected = element;
-    return true;
   }
 
   /** Aim towards a point in gameplay coordinates (clamped to the arc). */
@@ -239,7 +256,6 @@ export class World implements ReactionHost {
     const level = applyUpgrade(this.loadout, id, this.offerContext());
     if (id === 'repair') this.health = Math.min(PLAYER.maxHealth, this.health + 1);
     this.emit({ type: 'upgrade', id, level });
-    if ((this.loadout.elements as UpgradeId[]).includes(id)) this.selected = id as Element;
     this.offer = [];
     if (this.phase === 'start') {
       this.grantTestElements();
@@ -277,12 +293,13 @@ export class World implements ReactionHost {
     if (this.phase !== 'playing') return;
     this.stats.time += dt;
 
-    const arenaEmpty = this.enemies.length === 0;
-    for (const spec of this.runner.update(dt, arenaEmpty)) this.spawn(spec);
+    for (const spec of this.runner.update(dt, this.enemies.length)) this.spawn(spec);
 
+    this.grid.rebuild(this.enemies);
     this.updateFiring(dt);
     this.updateProjectiles(dt);
     this.updateEnemies(dt);
+    this.grid.rebuild(this.enemies);
     this.reactions.update(dt);
     this.separateEnemies(dt);
     this.removeDead();
@@ -291,7 +308,6 @@ export class World implements ReactionHost {
     if (this.health <= 0) {
       this.health = 0;
       this.phase = 'defeat';
-      this.firing = false;
       this.emit({ type: 'defeat' });
       return;
     }
@@ -307,7 +323,7 @@ export class World implements ReactionHost {
     this.runner = this.createRunner(wave);
     this.projectiles.length = 0;
     this.reactions.clear();
-    this.cooldown = 0.25;
+    this.cooldowns.clear();
     this.phase = 'playing';
     this.emit({ type: 'waveStart', wave });
   }
@@ -316,7 +332,6 @@ export class World implements ReactionHost {
     const cleared = this.wave;
     this.stats.wavesCleared = cleared;
     this.stats.score += SCORE.waveClearBonus * cleared;
-    this.firing = false;
     this.projectiles.length = 0;
     this.reactions.clear();
     this.emit({ type: 'waveClear', wave: cleared });
@@ -404,24 +419,40 @@ export class World implements ReactionHost {
     this.emit({ type: 'split', x: parent.x, y: parent.y, count });
   }
 
-  private updateFiring(dt: number): void {
-    this.cooldown -= dt;
-    if (!this.firing) {
-      if (this.cooldown < 0) this.cooldown = 0;
-      return;
-    }
-    if (this.cooldown > 0) return;
-    this.cooldown = Math.max(this.cooldown, -dt) + fireInterval(this.loadout);
-    this.fireVolley();
+  /** True while any enemy is visible in the arena (barrels hold fire otherwise). */
+  private targetsVisible(): boolean {
+    for (const e of this.enemies) if (e.alive && e.y + e.radius > WORLD.arenaTop) return true;
+    return false;
   }
 
-  private fireVolley(): void {
-    const element = this.selected;
+  /** Every owned element fires from its own barrel at its own rate. */
+  private updateFiring(dt: number): void {
+    const ready = this.autoFire && this.targetsVisible();
+    const rate = rapidFireMult(this.loadout);
+    const els = this.loadout.elements;
+    els.forEach((element, i) => {
+      let cd = (this.cooldowns.get(element) ?? 0.15 + i * 0.05) - dt;
+      if (ready && cd <= 0) {
+        // Barrels fan out a little either side of the aim.
+        const offset = (i - (els.length - 1) / 2) * PLAYER.barrelSpreadDeg * DEG;
+        this.fireBarrel(element, this.aimAngle + offset);
+        cd = Math.max(cd, -dt) + ELEMENTS[element].fireInterval * rate;
+      }
+      this.cooldowns.set(element, ready ? cd : Math.max(cd, 0));
+    });
+  }
+
+  /** Seconds until each barrel is ready (for the HUD). */
+  barrelCooldown(element: Element): number {
+    return Math.max(0, this.cooldowns.get(element) ?? 0);
+  }
+
+  private fireBarrel(element: Element, aim: number): void {
     const base = ELEMENTS[element].damage;
-    const angles: { a: number; minor: boolean }[] = [{ a: this.aimAngle, minor: false }];
+    const angles: { a: number; minor: boolean }[] = [{ a: aim, minor: false }];
     if (this.loadout.levels.splitShot > 0) {
       const spread = PLAYER.splitShotAngleDeg * DEG;
-      angles.push({ a: this.aimAngle - spread, minor: true }, { a: this.aimAngle + spread, minor: true });
+      angles.push({ a: aim - spread, minor: true }, { a: aim + spread, minor: true });
     }
     let fired = 0;
     for (const { a, minor } of angles) {
@@ -447,7 +478,7 @@ export class World implements ReactionHost {
     }
     if (fired > 0) {
       this.stats.shots++;
-      this.emit({ type: 'shot', element, x: WORLD.launcherX, y: WORLD.launcherY, angle: this.aimAngle, count: fired });
+      this.emit({ type: 'shot', element, x: WORLD.launcherX, y: WORLD.launcherY, angle: aim, count: fired });
     }
   }
 
@@ -475,7 +506,7 @@ export class World implements ReactionHost {
 
       let target: Enemy | null = null;
       let best = Infinity;
-      for (const e of this.enemies) {
+      for (const e of this.grid.query(p.x, p.y, p.radius + 100, this.scratch)) {
         if (!e.alive || e.y + e.radius < WORLD.arenaTop || p.hitIds.includes(e.id)) continue;
         const d2 = (e.x - p.x) ** 2 + (e.y - p.y) ** 2;
         const reach = e.radius + p.radius;
@@ -538,19 +569,17 @@ export class World implements ReactionHost {
     }
   }
 
-  /** Gently push overlapping enemies apart (gusts and singularities bunch them up). */
+  /** Gently push heavily overlapping enemies apart (gusts and singularities bunch them up). */
   private separateEnemies(dt: number): void {
-    const list = this.enemies;
-    const k = Math.min(1, 6 * dt);
-    for (let i = 0; i < list.length; i++) {
-      const a = list[i];
+    const k = Math.min(1, 5 * dt);
+    for (const a of this.enemies) {
       if (!a.alive) continue;
-      for (let j = i + 1; j < list.length; j++) {
-        const b = list[j];
-        if (!b.alive) continue;
+      for (const b of this.grid.query(a.x, a.y, a.radius + 100, this.scratch)) {
+        if (b.id <= a.id || !b.alive) continue;
         const dx = b.x - a.x;
         const dy = b.y - a.y;
-        const min = (a.radius + b.radius) * 0.85;
+        // Only true pile-ups: tight clusters are what cascades feed on.
+        const min = (a.radius + b.radius) * 0.7;
         const d2 = dx * dx + dy * dy;
         if (d2 >= min * min) continue;
         const d = Math.sqrt(d2) || 0.01;

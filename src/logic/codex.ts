@@ -1,3 +1,4 @@
+import { ELEMENTS } from '../config';
 import type { Element, ModifierId, ReactionId } from './types';
 
 export interface ReactionInfo {
@@ -17,7 +18,7 @@ export interface ReactionInfo {
 /** Every reaction in the game, in codex order. */
 export const REACTION_INFO: readonly ReactionInfo[] = [
   { id: 'steam', name: 'Steam', recipe: 'Fire → Wet', elements: ['fire', 'water'], description: 'Consumes wet; a burst of steam damages everything nearby and leaves a cloud.' },
-  { id: 'chain', name: 'Chain Lightning', recipe: 'Lightning → Wet', elements: ['lightning', 'water'], description: 'Arcs to up to 4 more wet enemies, each hit once.' },
+  { id: 'chain', name: 'Chain Lightning', recipe: 'Lightning → Wet', elements: ['lightning', 'water'], description: `Arcs to up to ${ELEMENTS.lightning.chainTargets} more wet enemies, each hit once.` },
   { id: 'overload', name: 'Overload', recipe: 'Lightning → Burning', elements: ['lightning', 'fire'], description: 'The flames short-circuit into an electric explosion.' },
   { id: 'conductive', name: 'Conductive Steam', recipe: 'Lightning → Steam cloud', elements: ['lightning', 'fire', 'water'], description: 'Enemies inside a steam cloud conduct lightning as if they were wet.' },
   { id: 'freeze', name: 'Freeze', recipe: 'Frost → Wet', elements: ['frost', 'water'], description: 'Consumes wet and freezes the enemy solid.' },

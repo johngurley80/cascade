@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { WAVES } from '../src/config';
+import { PLAYER, WAVES } from '../src/config';
 import { Rng } from '../src/logic/rng';
 import { WaveRunner, actOf, bossForWave, buildWaveSchedule, isBossKind } from '../src/logic/waves';
 import { World } from '../src/logic/world';
@@ -14,7 +14,7 @@ function killEverything(world: World): void {
 }
 
 function startRun(seed: number, opts: Partial<ConstructorParameters<typeof World>[0]> = {}): World {
-  const world = new World({ seed, ...opts });
+  const world = new World({ autoFire: false, seed, ...opts });
   if (world.phase === 'start') world.chooseUpgrade(world.offer.indexOf('water'));
   return world;
 }
@@ -23,7 +23,7 @@ describe('waves', () => {
   it('a wave is incomplete until every spawned enemy is resolved', () => {
     const runner = new WaveRunner(1, new Rng(4));
     let spawned = 0;
-    for (let t = 0; t < 120; t += DT) spawned += runner.update(DT, false).length;
+    for (let t = 0; t < 120; t += DT) spawned += runner.update(DT, 1000).length;
     runner.noteSpawned(spawned);
     expect(runner.allGroupsSpawned).toBe(true);
     expect(runner.complete).toBe(false);
@@ -34,12 +34,11 @@ describe('waves', () => {
   });
 
   it('the run opens on the starting-element choice', () => {
-    const world = new World({ seed: 1 });
+    const world = new World({ autoFire: false, seed: 1 });
     expect(world.phase).toBe('start');
     expect(world.offer).toHaveLength(7);
     world.chooseUpgrade(world.offer.indexOf('frost'));
     expect(world.loadout.elements).toEqual(['frost']);
-    expect(world.selected).toBe('frost');
     expect(world.phase).toBe('playing');
   });
 
@@ -92,7 +91,7 @@ describe('waves', () => {
     expect(world.phase).toBe('victory');
     expect(world.stats.wavesCleared).toBe(15);
     expect(healedAt).toContain(1);
-    expect(world.loadout.elements.length).toBe(4);
+    expect(world.loadout.elements.length).toBe(PLAYER.elementSlots);
     healedAt = [];
   });
 

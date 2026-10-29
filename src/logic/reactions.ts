@@ -40,6 +40,8 @@ export interface ReactionHost {
   readonly levels: Readonly<Record<ModifierId, number>>;
   /** Simulation clock (seconds), used for the cascade replay. */
   readonly time: number;
+  /** Optional fast neighbour lookup (candidates near a point; exact test is done here). */
+  nearby?(x: number, y: number, radius: number): readonly Enemy[];
 }
 
 /** Secondary reactions resolve after a short delay, one generation deeper than their trigger. */
@@ -319,6 +321,15 @@ export class ReactionEngine {
 
   get chainTargets(): number {
     return ELEMENTS.lightning.chainTargets + (this.lvl('longChain') > 0 ? ELEMENTS.lightning.longChainBonus : 0);
+  }
+
+  /** Blasts grow with each generation, so long cascades build to a crescendo. */
+  blastRadius(base: number, generation: number): number {
+    return base * (1 + REACTIONS.escalation.radiusPerGen * Math.max(0, generation - 1));
+  }
+
+  blastDamage(base: number, generation: number): number {
+    return base * (1 + REACTIONS.escalation.damagePerGen * Math.max(0, generation - 1));
   }
 
   get damageMult(): number {
@@ -622,7 +633,7 @@ export class ReactionEngine {
     const speed = ELEMENTS.void.pullSpeed;
     for (let i = this.singularities.length - 1; i >= 0; i--) {
       const s = this.singularities[i];
-      for (const e of this.host.enemies) {
+      for (const e of this.inRadius(s.x, s.y, s.radius)) {
         if (!e.alive || isBoss(e)) continue;
         const dx = s.x - e.x;
         const dy = s.y - e.y;
@@ -650,7 +661,7 @@ export class ReactionEngine {
     s.cascade.maxGeneration = Math.max(s.cascade.maxGeneration, gen);
     this.host.emit({ type: 'blast', kind: 'collapse', x: s.x, y: s.y, radius: s.radius, generation: gen });
     for (const e of this.inRadius(s.x, s.y, s.radius)) {
-      this.kineticHit(s.cascade, gen, e, ELEMENTS.void.collapseDamage * mult, 'collapse', s.x, s.y);
+      this.kineticHit(s.cascade, gen, e, this.blastDamage(ELEMENTS.void.collapseDamage * mult, gen), 'collapse', s.x, s.y);
     }
   }
 
@@ -695,7 +706,7 @@ export class ReactionEngine {
   /** Steam: damages nearby enemies (never applies wet) and leaves a conductive cloud. */
   private resolveSteam(r: PendingReaction): void {
     const big = this.lvl('bigSteam') > 0 ? REACTIONS.steam.bigSteamMult : 1;
-    const radius = REACTIONS.steam.radius * big;
+    const radius = this.blastRadius(REACTIONS.steam.radius * big, r.generation);
     this.react('steam', r);
     this.host.emit({ type: 'blast', kind: 'steam', x: r.x, y: r.y, radius, generation: r.generation });
     if (this.clouds.length >= REACTIONS.maxSteamClouds) this.clouds.shift();
@@ -714,13 +725,15 @@ export class ReactionEngine {
         this.react('thaw', e);
       }
       if (superheated && applyBurn(e, r.cascade, r.generation)) burned++;
-      this.damage(r.cascade, r.generation, e, REACTIONS.steam.damage, 'steam', r.x, r.y, false);
+      this.damage(r.cascade, r.generation, e, this.blastDamage(REACTIONS.steam.damage, r.generation), 'steam', r.x, r.y, false);
     }
     if (burned > 0) this.react('superheatedSteam', r);
   }
 
   /** Flashover / gas ignition: a fire explosion that runs the fire row of the table on each enemy. */
-  private resolveFireBlast(r: PendingReaction, kind: 'flashover' | 'ignition', radius: number, damage: number): void {
+  private resolveFireBlast(r: PendingReaction, kind: 'flashover' | 'ignition', baseRadius: number, baseDamage: number): void {
+    const radius = this.blastRadius(baseRadius, r.generation);
+    const damage = this.blastDamage(baseDamage, r.generation);
     this.react(kind, r);
     this.host.emit({ type: 'blast', kind, x: r.x, y: r.y, radius, generation: r.generation });
     const visited = new Set<number>([r.sourceId]);
@@ -731,7 +744,9 @@ export class ReactionEngine {
     }
   }
 
-  private resolveKineticBlast(r: PendingReaction, kind: BlastKind, radius: number, damage: number, source: DamageSource): void {
+  private resolveKineticBlast(r: PendingReaction, kind: BlastKind, baseRadius: number, baseDamage: number, source: DamageSource): void {
+    const radius = this.blastRadius(baseRadius, r.generation);
+    const damage = this.blastDamage(baseDamage, r.generation);
     if (kind === 'detonation' || kind === 'overload') this.react(kind, r);
     this.host.emit({ type: 'blast', kind, x: r.x, y: r.y, radius, generation: r.generation });
     const visited = new Set<number>([r.sourceId]);
@@ -745,8 +760,8 @@ export class ReactionEngine {
   /** Shatter: ice shards hit everything nearby, including the enemy that shattered. */
   private resolveShatter(r: PendingReaction): void {
     const cfg = REACTIONS.shatter;
-    const radius = cfg.radius * (this.lvl('deepFreeze') > 0 ? cfg.deepFreezeRadiusMult : 1);
-    const damage = cfg.damage * (r.brittle ? cfg.brittleMult : 1);
+    const radius = this.blastRadius(cfg.radius * (this.lvl('deepFreeze') > 0 ? cfg.deepFreezeRadiusMult : 1), r.generation);
+    const damage = this.blastDamage(cfg.damage * (r.brittle ? cfg.brittleMult : 1), r.generation);
     this.react('shatter', r);
     this.host.emit({ type: 'blast', kind: 'shatter', x: r.x, y: r.y, radius, generation: r.generation });
     const permafrost = this.lvl('permafrost') > 0;
@@ -773,7 +788,9 @@ export class ReactionEngine {
 
   /** Storm relay: one weaker chain to the nearest enemies, wet or not. */
   private resolveRelay(r: PendingReaction): void {
-    const { radius, targets, damage } = REACTIONS.stormRelay;
+    const { targets } = REACTIONS.stormRelay;
+    const radius = this.blastRadius(REACTIONS.stormRelay.radius, r.generation);
+    const damage = this.blastDamage(REACTIONS.stormRelay.damage, r.generation);
     const candidates = this.inRadius(r.x, r.y, radius)
       .filter((e) => e.id !== r.sourceId && !e.traits.insulated)
       .sort((a, b) => dist2(a.x, a.y, r.x, r.y) - dist2(b.x, b.y, r.x, r.y))
@@ -801,7 +818,9 @@ export class ReactionEngine {
 
   inRadius(x: number, y: number, radius: number): Enemy[] {
     const out: Enemy[] = [];
-    for (const e of this.host.enemies) {
+    // Pad the grid query: enemies can have moved a little since the grid was built.
+    const candidates = this.host.nearby ? this.host.nearby(x, y, radius + 96) : this.host.enemies;
+    for (const e of candidates) {
       if (!e.alive) continue;
       const reach = radius + e.radius * 0.5;
       if (dist2(e.x, e.y, x, y) <= reach * reach) out.push(e);

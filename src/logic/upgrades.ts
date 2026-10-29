@@ -45,7 +45,7 @@ const mod = (
 export const UPGRADE_DEFS: Record<UpgradeId, UpgradeDef> = {
   fire: el('fire', 'Fire', '🔥', 'Damage + short burn. On WET → Steam burst. On POISONED → Gas ignition. Thaws frozen enemies.'),
   water: el('water', 'Water', '💧', 'Low damage. Wets the target and splashes WET onto nearby enemies. Shatters frozen enemies.'),
-  lightning: el('lightning', 'Lightning', '⚡', 'Direct damage. On WET → chains to 4 more wet enemies. On BURNING → Overload blast.'),
+  lightning: el('lightning', 'Lightning', '⚡', `Direct damage. On WET → chains to ${ELEMENTS.lightning.chainTargets} more wet enemies. On BURNING → Overload blast.`),
   frost: el('frost', 'Frost', '❄️', 'Chills (slows). On WET → freezes solid; any later hit Shatters it. On BURNING → Thermal shock.'),
   wind: el('wind', 'Wind', '🌪️', 'A gust pulls nearby enemies together and knocks the target back. Spreads burn and wet.'),
   toxin: el('toxin', 'Toxin', '☠️', 'Poison: damage over time, +30% damage taken, eats shields. Fire ignites it; Frost makes it brittle.'),
@@ -192,8 +192,9 @@ export function buildOffer(completedWave: number, loadout: Loadout, rng: Rng, ct
   }
 }
 
-export function fireInterval(loadout: Loadout): number {
-  return PLAYER.fireInterval * Math.pow(PLAYER.rapidFireIntervalMult, loadout.levels.rapidFire);
+/** Multiplier applied to every barrel's fire interval (Rapid Fire). */
+export function rapidFireMult(loadout: Loadout): number {
+  return Math.pow(PLAYER.rapidFireIntervalMult, loadout.levels.rapidFire);
 }
 
 /** Grant everything (used by the `unlock=all` test parameter). */

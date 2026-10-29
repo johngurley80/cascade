@@ -1,9 +1,11 @@
 import Phaser from 'phaser';
-import { PLAYER, SHIELD, WORLD } from '../config';
+import { ELEMENTS, PLAYER, SHIELD, WORLD } from '../config';
+import { rapidFireMult } from '../logic/upgrades';
 import { isBoss } from '../logic/status';
-import type { Enemy, Projectile, Singularity, SteamCloud } from '../logic/types';
+import type { Element, Enemy, Projectile, Singularity, SteamCloud } from '../logic/types';
 import type { World } from '../logic/world';
 import { droplet, snowflake } from '../ui/icons';
+import { SpritePool, TEX, ensureTextures } from './textures';
 import { COLORS, ELEMENT_COLORS, ENEMY_COLORS, TRAIT_COLORS, mixColor, paletteForAct } from '../ui/theme';
 
 type G = Phaser.GameObjects.Graphics;
@@ -21,8 +23,11 @@ export class ArenaRenderer {
   readonly launcherLayer: G;
   private time = 0;
   private act = 0;
+  private readonly projectileSprites: SpritePool;
 
   constructor(scene: Phaser.Scene) {
+    ensureTextures(scene);
+    this.projectileSprites = new SpritePool(scene, 31);
     this.background = scene.add.graphics().setDepth(0);
     this.fieldLayer = scene.add.graphics().setDepth(12);
     this.enemyLayer = scene.add.graphics().setDepth(20);
@@ -69,15 +74,22 @@ export class ArenaRenderer {
     for (const c of world.reactions.clouds) this.drawCloud(fields, c);
     for (const s of world.reactions.singularities) this.drawSingularity(fields, glow, s);
     this.drawDefenceLine(e, glow, danger);
-    for (const enemy of world.enemies) if (enemy.alive) this.drawEnemy(e, glow, enemy);
-    for (const p of world.projectiles) if (p.alive) this.drawProjectile(glow, p);
+    for (const enemy of world.enemies) {
+      if (!enemy.alive) continue;
+      const primed = world.primedElement(enemy);
+      if (primed) this.drawPrimed(fields, enemy, primed);
+      this.drawEnemy(e, glow, enemy);
+    }
+    this.projectileSprites.begin();
+    for (const p of world.projectiles) if (p.alive) this.drawProjectile(p);
+    this.projectileSprites.end();
     this.drawLauncher(world);
   }
 
   // ------------------------------------------------------------------ fields
 
   private drawCloud(g: G, c: SteamCloud): void {
-    const a = Math.min(1, c.life / 0.5) * 0.22;
+    const a = Math.min(1, c.life / 0.5) * 0.13;
     for (let k = 0; k < 5; k++) {
       const ang = this.time * 0.6 + k * 1.3 + c.id;
       const r = c.radius * (0.55 + 0.1 * Math.sin(this.time * 2 + k));
@@ -113,6 +125,16 @@ export class ArenaRenderer {
     // Only the shrinking rim draws above, so the threat area is clear.
     glow.lineStyle(2, col.core, 0.7);
     glow.strokeCircle(s.x, s.y, s.radius * (1 - t * 0.15));
+  }
+
+  /** Soft halo in the colour of the element that would set off a reaction on this enemy. */
+  private drawPrimed(g: G, en: Enemy, el: Element): void {
+    const col = ELEMENT_COLORS[el];
+    const pulse = 0.5 + 0.5 * Math.sin(this.time * 6 + en.id * 0.7);
+    g.fillStyle(col.main, 0.1 + 0.1 * pulse);
+    g.fillCircle(en.x, en.y, en.radius * (1.6 + 0.15 * pulse));
+    g.fillStyle(col.main, 0.12);
+    g.fillCircle(en.x, en.y, en.radius * 1.25);
   }
 
   private drawDefenceLine(g: G, glow: G, danger: number): void {
@@ -383,53 +405,66 @@ export class ArenaRenderer {
 
   // ------------------------------------------------------------- projectiles
 
-  private drawProjectile(glow: G, p: Projectile): void {
+  /** Tinted sprites: a tapered trail, a soft halo and a bright core. */
+  private drawProjectile(p: Projectile): void {
     const col = ELEMENT_COLORS[p.element];
-    const len = p.minor ? 0.05 : 0.075;
-    const segs = 6;
-    for (let i = 0; i < segs; i++) {
-      const t0 = len * (1 - i / segs);
-      const t1 = len * (1 - (i + 1) / segs);
-      const k = (i + 1) / segs;
-      glow.lineStyle(p.radius * (0.35 + 1.1 * k), col.main, 0.2 + 0.8 * k * k);
-      glow.lineBetween(p.x - p.vx * t0, p.y - p.vy * t0, p.x - p.vx * t1, p.y - p.vy * t1);
-    }
-    glow.lineStyle(Math.max(1.5, p.radius * 0.5), col.core, 1);
-    glow.lineBetween(p.x - p.vx * len * 0.45, p.y - p.vy * len * 0.45, p.x, p.y);
-    glow.fillStyle(col.main, 0.22);
-    glow.fillCircle(p.x, p.y, p.radius * 2.1);
-    glow.fillStyle(col.main, 1);
-    glow.fillCircle(p.x, p.y, p.radius * 1.1);
-    glow.fillStyle(col.core, 1);
-    glow.fillCircle(p.x, p.y, p.radius * 0.65);
+    const pool = this.projectileSprites;
+    const speed = Math.hypot(p.vx, p.vy) || 1;
+    const len = speed * (p.minor ? 0.05 : 0.075);
+    pool
+      .next(TEX.trail)
+      .setOrigin(1, 0.5)
+      .setPosition(p.x, p.y)
+      .setDisplaySize(len, p.radius * 1.9)
+      .setRotation(Math.atan2(p.vy, p.vx))
+      .setTint(col.main)
+      .setAlpha(1);
+    pool.next(TEX.dot).setPosition(p.x, p.y).setDisplaySize(p.radius * 4.4, p.radius * 4.4).setTint(col.main).setAlpha(0.7).setRotation(0);
+    pool.next(TEX.dot).setPosition(p.x, p.y).setDisplaySize(p.radius * 1.9, p.radius * 1.9).setTint(col.core).setAlpha(1).setRotation(0);
   }
 
   private drawLauncher(world: World): void {
     const g = this.launcherLayer;
     const { launcherX: x, launcherY: y } = WORLD;
-    const col = ELEMENT_COLORS[world.selected];
+    const els = world.loadout.elements;
     const a = world.aimAngle;
-    const sin = Math.sin(a);
-    const cos = Math.cos(a);
 
     const max = (PLAYER.maxAimAngleDeg * Math.PI) / 180;
     g.lineStyle(2, COLORS.panelEdge, 0.5);
     g.beginPath();
     g.arc(x, y, 70, -Math.PI / 2 - max, -Math.PI / 2 + max, false);
     g.strokePath();
-    g.fillStyle(col.main, 0.5);
-    for (let d = 70; d < 330; d += 22) g.fillCircle(x + sin * d, y - cos * d, 2.2);
+    // Aim guide in white so it reads against every element colour.
+    g.fillStyle(0xffffff, 0.35);
+    for (let d = 70; d < 330; d += 22) g.fillCircle(x + Math.sin(a) * d, y - Math.cos(a) * d, 2.2);
 
-    g.lineStyle(16, 0x1a2550, 1);
-    g.lineBetween(x, y, x + sin * 46, y - cos * 46);
-    g.lineStyle(8, col.main, 1);
-    g.lineBetween(x, y, x + sin * 44, y - cos * 44);
+    // One barrel per element, fanned like their shots (exaggerated so each one is visible).
+    const rate = rapidFireMult(world.loadout);
+    els.forEach((el, i) => {
+      const col = ELEMENT_COLORS[el];
+      const off = (i - (els.length - 1) / 2) * PLAYER.barrelSpreadDeg * (Math.PI / 180) * 2.2;
+      const ba = a + off;
+      // Recoil: kicked back right after firing, easing out over 0.1 s.
+      const sinceShot = ELEMENTS[el].fireInterval * rate - world.barrelCooldown(el);
+      const kick = 7 * Math.max(0, 1 - sinceShot / 0.1);
+      const len = 46 - kick;
+      g.lineStyle(13, 0x1a2550, 1);
+      g.lineBetween(x, y, x + Math.sin(ba) * (len + 2), y - Math.cos(ba) * (len + 2));
+      g.lineStyle(7, col.main, 1);
+      g.lineBetween(x, y, x + Math.sin(ba) * len, y - Math.cos(ba) * len);
+    });
     g.fillStyle(COLORS.panel, 1);
     g.fillCircle(x, y, 30);
-    g.lineStyle(3, col.main, 1);
-    g.strokeCircle(x, y, 30);
-    g.fillStyle(col.core, world.firing ? 1 : 0.7);
-    g.fillCircle(x, y, 11);
+    // Ring segments in each element's colour.
+    const n = Math.max(1, els.length);
+    els.forEach((el, i) => {
+      g.lineStyle(4, ELEMENT_COLORS[el].main, 1);
+      g.beginPath();
+      g.arc(x, y, 30, (i / n) * Math.PI * 2 - Math.PI / 2 + 0.06, ((i + 1) / n) * Math.PI * 2 - Math.PI / 2 - 0.06, false);
+      g.strokePath();
+    });
+    g.fillStyle(0xffffff, 0.85);
+    g.fillCircle(x, y, 9);
   }
 }
 

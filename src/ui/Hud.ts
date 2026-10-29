@@ -1,14 +1,12 @@
 import Phaser from 'phaser';
-import { PLAYER, SCORE, WAVES, WORLD } from '../config';
-import { MODIFIER_IDS, UPGRADE_DEFS } from '../logic/upgrades';
+import { ELEMENTS, PLAYER, SCORE, WAVES, WORLD } from '../config';
+import { MODIFIER_IDS, UPGRADE_DEFS, rapidFireMult } from '../logic/upgrades';
 import type { ModifierId } from '../logic/types';
 import type { World } from '../logic/world';
 import { drawIcon } from './icons';
 import { COLORS, ELEMENT_COLORS, FONT, css, paletteForAct } from './theme';
 
 export interface HudCallbacks {
-  /** Select the element in slot `index` (0-based, in acquisition order). */
-  onSelectSlot(index: number): void;
   onPause(): void;
 }
 
@@ -33,7 +31,6 @@ export class Hud {
   private readonly waveText: Phaser.GameObjects.Text;
   private readonly scoreText: Phaser.GameObjects.Text;
   private readonly slotLabels: Phaser.GameObjects.Text[] = [];
-  private readonly slotZones: Phaser.GameObjects.Zone[] = [];
   private readonly chipTexts: Phaser.GameObjects.Text[] = [];
   private readonly counterLabel: Phaser.GameObjects.Text;
   private readonly counterValue: Phaser.GameObjects.Text;
@@ -51,7 +48,9 @@ export class Hud {
   private lastSignature = '';
   private healthFlash = 0;
   private shownScore = 0;
-  private slotLayout = -1;
+  /** Recent barrel cooldowns, to flash a slot each time it fires. */
+  private lastCooldown = new Map<string, number>();
+  private fireFlash = new Map<string, number>();
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -66,12 +65,6 @@ export class Hud {
 
     for (let i = 0; i < MAX_SLOTS; i++) {
       this.slotLabels.push(scene.add.text(0, 0, '', style(17)).setOrigin(0.5).setDepth(62));
-      const zone = scene.add.zone(0, 0, 10, 10).setInteractive({ useHandCursor: true }).setDepth(63);
-      zone.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
-        ev?.stopPropagation?.();
-        this.cb.onSelectSlot(i);
-      });
-      this.slotZones.push(zone);
     }
     for (let i = 0; i < CHIPS.cols * CHIPS.rows; i++) {
       this.chipTexts.push(scene.add.text(0, 0, '', style(12, COLORS.text)).setOrigin(0.5, 1).setDepth(62));
@@ -226,17 +219,7 @@ export class Hud {
     const gap = slots > 4 ? 6 : 8;
     const w = (SLOT_AREA.w - gap * (slots - 1)) / slots;
     const h = SLOT_AREA.h;
-    if (slots !== this.slotLayout) {
-      this.slotLayout = slots;
-      this.slotZones.forEach((zone, i) => {
-        if (i >= slots) {
-          zone.disableInteractive();
-          this.slotLabels[i].setText('');
-        } else {
-          zone.setPosition(SLOT_AREA.x + w / 2 + i * (w + gap), SLOT_AREA.y).setSize(w, h).setInteractive({ useHandCursor: true });
-        }
-      });
-    }
+    for (let i = slots; i < MAX_SLOTS; i++) this.slotLabels[i].setText('');
     for (let i = 0; i < slots; i++) {
       const label = this.slotLabels[i];
       const x = SLOT_AREA.x + w / 2 + i * (w + gap);
@@ -246,23 +229,32 @@ export class Hud {
         // Empty slot: shows when the next element arrives.
         g.lineStyle(2, COLORS.panelEdge, 0.45);
         g.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 14);
-        const next = [1, 4, 8][i - 1];
+        const next = PLAYER.elementPickAfterWaves[i - 1];
         label.setPosition(x, y).setText(next ? `after\nwave ${next}` : '').setColor(css(COLORS.textDim)).setAlpha(0.6).setAlign('center');
         label.setFontSize(14);
         continue;
       }
-      const sel = world.selected === el;
+      // Every element is a barrel that fires on its own: flash the slot on each shot.
       const col = ELEMENT_COLORS[el];
-      g.fillStyle(sel ? col.dark : 0x0a1230, 1);
+      const cd = world.barrelCooldown(el);
+      if (cd > (this.lastCooldown.get(el) ?? 0) + 0.02) this.fireFlash.set(el, 1);
+      this.lastCooldown.set(el, cd);
+      const flash = Math.max(0, (this.fireFlash.get(el) ?? 0) - 0.08);
+      this.fireFlash.set(el, flash);
+      g.fillStyle(col.dark, 0.75 + 0.25 * flash);
       g.fillRoundedRect(x - w / 2, y - h / 2, w, h, 14);
-      g.lineStyle(sel ? 5 : 2, col.main, sel ? 1 : 0.6);
+      g.lineStyle(2 + 3 * flash, col.main, 0.75 + 0.25 * flash);
       g.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 14);
-      const compact = slots > 4;
-      drawIcon(g, el, x, y - (compact ? 10 : 16), compact ? 14 : sel ? 22 : 19);
-      label.setPosition(x, y + (compact ? 30 : 32));
-      label.setFontSize(compact ? 14 : 16);
-      label.setText(compact ? `${i + 1}` : `${i + 1} ${UPGRADE_DEFS[el].name.toUpperCase()}`);
-      label.setColor(sel ? '#ffffff' : css(col.main)).setAlpha(1);
+      const interval = ELEMENTS[el].fireInterval * rapidFireMult(world.loadout);
+      const ready = 1 - Math.min(1, cd / interval);
+      g.fillStyle(col.main, 0.85);
+      g.fillRoundedRect(x - w / 2 + 10, y + h / 2 - 12, (w - 20) * ready, 5, 2);
+      const compact = slots > 5;
+      drawIcon(g, el, x, y - (compact ? 10 : 18), compact ? 14 : 18 + 3 * flash);
+      label.setPosition(x, y + (compact ? 26 : 22));
+      label.setFontSize(compact ? 13 : slots > 4 ? 14 : 16);
+      label.setText(compact ? '' : UPGRADE_DEFS[el].name.toUpperCase());
+      label.setColor(css(col.main)).setAlpha(1);
     }
 
     // Acquired modifiers as an icon grid with level numerals.

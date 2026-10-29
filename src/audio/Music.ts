@@ -50,9 +50,17 @@ class Music {
   private mode: Mode = 'calm';
   private targetMode: Mode = 'calm';
   private suspended = false;
+  private bpm: number = MUSIC.bpm;
+  private targetBpm: number = MUSIC.bpm;
 
   private get stepDur(): number {
-    return 60 / MUSIC.bpm / 4;
+    return 60 / this.bpm / 4;
+  }
+
+  /** 0 = calm, 1 = enemies at the line: the tempo glides up to match the threat. */
+  setTempo(threat: number): void {
+    const t = Math.max(0, Math.min(1, threat));
+    this.targetBpm = MUSIC.bpm + MUSIC.bpmBoost * t;
   }
 
   setEnabled(on: boolean): void {
@@ -141,6 +149,9 @@ class Music {
 
   private playStep(step: number, t: number): void {
     const inBar = step % 16;
+    // Glide towards the target tempo a little every step (no audible jumps).
+    this.bpm += (this.targetBpm - this.bpm) * 0.06;
+    if (inBar % 4 === 0 && this.delay && this.ctx) this.delay.delayTime.setTargetAtTime(this.stepDur * 3, t, 0.1);
     if (inBar === 0) {
       // Layer and mode changes land on bar lines.
       this.intensity = this.targetIntensity;

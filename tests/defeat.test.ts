@@ -21,7 +21,7 @@ describe('defeats and rewards', () => {
   });
 
   it('an enemy caught by several reactions is rewarded once, with a cascade multiplier', () => {
-    const world = new World({ seed: 1, startWave: 4, unlockAll: true });
+    const world = new World({ autoFire: false, seed: 1, startWave: 4, unlockAll: true });
     world.drainEvents();
     const group = [world.spawnAt('basic', 300, 400), world.spawnAt('basic', 340, 400), world.spawnAt('basic', 380, 400)];
     for (const e of group) {
@@ -39,7 +39,7 @@ describe('defeats and rewards', () => {
   });
 
   it('an enemy that crosses the line costs health and is not rewarded', () => {
-    const world = new World({ seed: 2, unlockAll: true });
+    const world = new World({ autoFire: false, seed: 2, unlockAll: true });
     const e = world.spawnAt('basic', 360, 1030);
     world.step(0.5);
     expect(world.health).toBe(2);
@@ -48,7 +48,7 @@ describe('defeats and rewards', () => {
   });
 
   it('a boss crossing the line costs all remaining health', () => {
-    const world = new World({ seed: 3, unlockAll: true });
+    const world = new World({ autoFire: false, seed: 3, unlockAll: true });
     world.spawnAt('monolith', 360, 1030);
     world.step(1);
     expect(world.health).toBe(0);
