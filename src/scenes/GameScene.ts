@@ -42,11 +42,11 @@ const SHOT_SOUND: Record<Element, SoundName> = {
 const RELAY_COLOR = 0xc9b2ff;
 
 const BLAST_STYLE: Record<BlastKind, { color: number; core: number; sound: SoundName; shake: number }> = {
-  steam: { color: COLORS.steam, core: ELEMENT_COLORS.water.core, sound: 'steam', shake: 0.8 },
+  steam: { color: 0xa9c9e2, core: ELEMENT_COLORS.water.main, sound: 'steam', shake: 0.8 },
   flashover: { color: ELEMENT_COLORS.fire.main, core: ELEMENT_COLORS.lightning.main, sound: 'flashover', shake: 1 },
   ignition: { color: ELEMENT_COLORS.toxin.main, core: ELEMENT_COLORS.fire.main, sound: 'ignition', shake: 1.3 },
-  shatter: { color: ELEMENT_COLORS.frost.main, core: 0xffffff, sound: 'shatter', shake: 0.7 },
-  overload: { color: ELEMENT_COLORS.lightning.main, core: 0xffffff, sound: 'overload', shake: 0.8 },
+  shatter: { color: ELEMENT_COLORS.frost.main, core: ELEMENT_COLORS.water.main, sound: 'shatter', shake: 0.7 },
+  overload: { color: ELEMENT_COLORS.lightning.main, core: ELEMENT_COLORS.fire.main, sound: 'overload', shake: 0.8 },
   detonation: { color: ENEMY_COLORS.volatile.edge, core: ENEMY_COLORS.volatile.core, sound: 'detonation', shake: 1.1 },
   collapse: { color: ELEMENT_COLORS.void.main, core: ELEMENT_COLORS.void.core, sound: 'collapse', shake: 1 },
 };
@@ -63,7 +63,9 @@ export class GameScene extends Phaser.Scene {
   private effects!: Effects;
   private hud!: Hud;
   private upgradePanel!: UpgradePanel;
-  private flashRect!: Phaser.GameObjects.Rectangle;
+  /** Soft red frame around the arena when something leaks (never a full-screen flash). */
+  private leakVignette!: Phaser.GameObjects.Graphics;
+  private lastShake = -1;
   private accumulator = 0;
   private paused = false;
   private pauseOverlay: Overlay | null = null;
@@ -110,7 +112,12 @@ export class GameScene extends Phaser.Scene {
     const mode = this.cfg.daily ? `DAILY RUN · ${this.cfg.daily}` : this.cfg.endless ? 'ENDLESS' : `seed ${this.cfg.seed}`;
     this.hud = new Hud(this, { onPause: () => this.pause('Paused') }, mode);
     this.upgradePanel = new UpgradePanel(this);
-    this.flashRect = this.add.rectangle(0, 0, WORLD.width, WORLD.height, COLORS.danger, 0).setOrigin(0).setDepth(90);
+    this.leakVignette = this.add.graphics().setDepth(90).setAlpha(0);
+    for (let i = 0; i < 6; i++) {
+      this.leakVignette.lineStyle(8, COLORS.danger, 0.5 - i * 0.08);
+      this.leakVignette.strokeRect(4 + i * 8, WORLD.arenaTop + 4 + i * 8, WORLD.width - 8 - i * 16, WORLD.arenaBottom - WORLD.arenaTop - 8 - i * 16);
+    }
+    this.lastShake = -1;
 
     this.setupInput();
     this.setupFocusHandling();
@@ -489,11 +496,14 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Gentle and rate-limited: at most one shake every half second. */
   private shake(intensity: number = FX.shakeMajor, duration: number = FX.shakeDuration): void {
     if (settings.reducedEffects) return;
+    const now = this.time.now;
     const cam = this.cameras.main;
-    if (cam.shakeEffect.isRunning) return;
-    cam.shake(duration, intensity);
+    if (cam.shakeEffect.isRunning || now - this.lastShake < 500) return;
+    this.lastShake = now;
+    cam.shake(duration, Math.min(intensity, 0.006));
   }
 
   private discover(id: ReactionId): void {
@@ -518,8 +528,7 @@ export class GameScene extends Phaser.Scene {
       }
       case 'hit': {
         const col = ELEMENT_COLORS[ev.element];
-        fx.burst(ev.x, ev.y, col.main, 4, 240, { life: 0.22, size: 2.5, minor: true });
-        fx.ring(ev.x, ev.y, 4, 22, col.core, 0.16, 3, 0, true);
+        fx.burst(ev.x, ev.y, col.main, 3, 220, { life: 0.2, size: 2.2, minor: true });
         sfx.play('hit');
         break;
       }
@@ -555,7 +564,7 @@ export class GameScene extends Phaser.Scene {
           fx.burst(ev.x, ev.y, COLORS.steam, 18, 230, { life: 0.85, shape: 'puff', size: 13, drag: 3.5, gravity: -70 });
         } else if (ev.kind === 'shatter') {
           fx.burst(ev.x, ev.y, st.color, 18, 480, { life: 0.5, shape: 'shard', size: 7, drag: 3 });
-          fx.burst(ev.x, ev.y, 0xffffff, 8, 300, { life: 0.3, size: 2 });
+          fx.burst(ev.x, ev.y, ELEMENT_COLORS.water.main, 6, 300, { life: 0.3, size: 2 });
         } else if (ev.kind === 'collapse') {
           fx.ring(ev.x, ev.y, 4, ev.radius * 1.2, st.core, 0.3, 3);
           fx.burst(ev.x, ev.y, st.color, 16, 360, { life: 0.45, size: 3 });
@@ -590,7 +599,7 @@ export class GameScene extends Phaser.Scene {
         } else if (ev.status === 'poison') {
           sfx.play('poison');
         } else if (ev.status === 'thermalShock') {
-          fx.burst(ev.x, ev.y, 0xffffff, 10, 260, { life: 0.3, size: 2.5 });
+          fx.burst(ev.x, ev.y, ELEMENT_COLORS.frost.main, 8, 260, { life: 0.3, size: 2.5 });
           sfx.play('shatter', 0.6);
         }
         break;
@@ -619,7 +628,7 @@ export class GameScene extends Phaser.Scene {
         fx.ring(ev.x, ev.y, ev.radius * 0.5, ev.radius * (big ? 4 : 1.8), col.edge, big ? 0.8 : 0.22, big ? 8 : 4);
         if (ev.elite) fx.ring(ev.x, ev.y, ev.radius, ev.radius * 2.6, COLORS.gold, 0.4, 5);
         if (big) {
-          this.shake(0.02, 600);
+          this.shake(0.006, 400);
           this.hud.banner('BOSS DESTROYED', COLORS.gold, '', 1600);
           music.duck();
         }
@@ -633,10 +642,11 @@ export class GameScene extends Phaser.Scene {
       case 'leak': {
         fx.ring(ev.x, WORLD.defenceLineY, 10, 120, COLORS.danger, 0.5, 6, 0.2);
         fx.burst(ev.x, WORLD.defenceLineY, COLORS.danger, 18, 380, { life: 0.5 });
-        this.flashRect.setAlpha(0.28);
-        this.tweens.add({ targets: this.flashRect, alpha: 0, duration: 380 });
+        this.tweens.killTweensOf(this.leakVignette);
+        this.leakVignette.setAlpha(0.7);
+        this.tweens.add({ targets: this.leakVignette, alpha: 0, duration: 900, ease: 'Sine.Out' });
         this.hud.hurt();
-        this.shake(0.012, 260);
+        this.shake(0.004, 200);
         sfx.play('leak');
         break;
       }
@@ -677,7 +687,7 @@ export class GameScene extends Phaser.Scene {
         const tip =
           ev.kind === 'hive' ? 'It sheds splitlings as it takes damage' : ev.kind === 'aegis' ? 'Direct hits glance off — use reactions' : 'It speeds up when wounded';
         this.hud.banner(name, COLORS.danger, tip, 2000);
-        this.shake(0.01, 500);
+        this.shake(0.004, 300);
         sfx.play('boss');
         break;
       }

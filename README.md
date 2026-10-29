@@ -96,6 +96,12 @@ health. In Endless mode, waves keep scaling and the bosses return stronger.
 
 The music speeds up as enemies close in on the line.
 
+## Visual safety
+
+Cascade avoids full-screen white flashes and strobing. Screen tints are dim, coloured and limited to a few per second;
+pulses and glows change slowly (well under 3 Hz); camera shake is rate-limited. **Reduced effects** in the pause
+menu removes screen tints entirely and cuts particles further.
+
 ## Scoring
 
 Each defeat scores more the more enemies its cascade has already hit (up to ×6), and clearing a wave adds a bonus.
@@ -168,7 +174,7 @@ never affects the run. Collisions use simple circle overlap; Arcade physics isn'
 
 Every projectile impact starts a *cascade* with its own ID. Each blast is one generation deeper than whatever
 triggered it, and nothing beyond generation 6 is created (Catalyst raises the limit to 8). Blasts grow by 8% in
-radius and 15% in damage with each generation, so long cascades build to a crescendo. This applies to steam,
+radius and 10% in damage with each generation, so long cascades build to a crescendo. This applies to steam,
 flashover, ignition, shatter, overload, detonation, singularity collapse and storm relay. Burns and poisons
 remember the generation that applied them, so a defeat by damage over time stays within the same budget. Each
 reaction keeps a visited set, so it damages an enemy at most once. Enemies are marked dead on the hit that kills

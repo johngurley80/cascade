@@ -48,9 +48,13 @@ export class Hud {
   private lastSignature = '';
   private healthFlash = 0;
   private shownScore = 0;
-  /** Recent barrel cooldowns, to flash a slot each time it fires. */
-  private lastCooldown = new Map<string, number>();
-  private fireFlash = new Map<string, number>();
+  /** Panels redraw only when what they show changes (cheap on phones). */
+  private topSignature = '';
+  private bottomSignature = '';
+  private readonly cooldownBars: Phaser.GameObjects.Graphics;
+  private scoreTimer = 0;
+  private counterTextTimer = 0;
+  private counterDirty = false;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -59,6 +63,7 @@ export class Hud {
   ) {
     this.top = scene.add.graphics().setDepth(60);
     this.bottom = scene.add.graphics().setDepth(60);
+    this.cooldownBars = scene.add.graphics().setDepth(61);
     this.waveText = scene.add.text(WORLD.width / 2, 28, '', style(28)).setOrigin(0.5).setDepth(61);
     scene.add.text(WORLD.width / 2, 76, subtitle, style(14, COLORS.textDim, false)).setOrigin(0.5).setDepth(61);
     this.scoreText = scene.add.text(20, 76, '', style(16, COLORS.gold)).setOrigin(0, 0.5).setDepth(61);
@@ -102,17 +107,28 @@ export class Hud {
     this.counterCascadeId = cascadeId;
     this.counterSize = size;
     this.counterTimer = 1.6;
+    // Re-render the big number at most ~12 times a second; the latest size wins.
+    if (this.counterTextTimer > 0 && !grew) return;
+    if (this.counterTextTimer > 0) {
+      this.counterDirty = true;
+      return;
+    }
+    this.renderCounter();
+  }
+
+  private renderCounter(): void {
+    const size = this.counterSize;
+    this.counterDirty = false;
+    this.counterTextTimer = 0.08;
     this.counterValue.setText(`×${size}`);
     const color = size >= 10 ? 0xff6fd8 : size >= 5 ? COLORS.gold : 0xbfe4ff;
     this.counterValue.setColor(css(color));
     this.counterLabel.setText(size >= 15 ? 'COLOSSAL CASCADE' : size >= 10 ? 'MEGA CASCADE' : size >= 5 ? 'BIG CASCADE' : 'CASCADE');
     const mult = Math.min(SCORE.comboMax, 1 + SCORE.comboPerHit * (size - 1));
     this.counterMult.setText(`score ×${mult.toFixed(1)}`);
-    if (grew) {
-      this.scene.tweens.killTweensOf(this.counterValue);
-      this.counterValue.setScale(1.4);
-      this.scene.tweens.add({ targets: this.counterValue, scale: 1, duration: 180, ease: 'Back.Out' });
-    }
+    this.scene.tweens.killTweensOf(this.counterValue);
+    this.counterValue.setScale(1.2);
+    this.scene.tweens.add({ targets: this.counterValue, scale: 1, duration: 200, ease: 'Sine.Out' });
   }
 
   banner(text: string, color: number = COLORS.text, sub = '', duration = 1400): void {
@@ -134,6 +150,8 @@ export class Hud {
 
   update(world: World, dt: number): void {
     this.counterTimer = Math.max(0, this.counterTimer - dt);
+    this.counterTextTimer -= dt;
+    if (this.counterDirty && this.counterTextTimer <= 0 && this.counterSize > 0) this.renderCounter();
     const ca = Math.min(1, this.counterTimer / 0.4);
     this.counterValue.setAlpha(ca);
     this.counterLabel.setAlpha(ca);
@@ -145,12 +163,44 @@ export class Hud {
     const act = world.act;
     const label = world.endless && world.wave > WAVES.total ? `ENDLESS · WAVE ${world.wave}` : `${paletteForAct(act).name.toUpperCase()} · WAVE ${world.wave}/${WAVES.total}`;
     this.waveText.setText(label);
-    // Score counts up smoothly.
+    // Score counts up smoothly, but the text is only re-rendered ~8 times a second.
     this.shownScore += (world.stats.score - this.shownScore) * Math.min(1, dt * 8);
     if (Math.abs(world.stats.score - this.shownScore) < 1) this.shownScore = world.stats.score;
-    this.scoreText.setText(`SCORE ${Math.round(this.shownScore).toLocaleString('en-US')}`);
-    this.drawTop(world);
-    this.drawBottom(world);
+    this.scoreTimer -= dt;
+    if (this.scoreTimer <= 0) {
+      this.scoreTimer = 0.12;
+      this.scoreText.setText(`SCORE ${Math.round(this.shownScore).toLocaleString('en-US')}`);
+    }
+    const r = world.runner;
+    const progress = Math.round((100 * r.resolved) / Math.max(r.totalPlanned, r.spawned, 1));
+    const top = `${world.health}|${progress}|${this.healthFlash > 0 ? 1 : 0}`;
+    if (top !== this.topSignature) {
+      this.topSignature = top;
+      this.drawTop(world);
+    }
+    const bottom = `${world.loadout.elements.join(',')}|${MODIFIER_IDS.map((id) => world.loadout.levels[id]).join(',')}`;
+    if (bottom !== this.bottomSignature) {
+      this.bottomSignature = bottom;
+      this.drawBottom(world);
+    }
+    this.drawCooldowns(world);
+  }
+
+  /** Each barrel's reload bar: the only part of the element bar that moves. */
+  private drawCooldowns(world: World): void {
+    const g = this.cooldownBars;
+    g.clear();
+    const owned = world.loadout.elements;
+    const slots = Math.max(PLAYER.elementSlots, owned.length);
+    const gap = slots > 4 ? 6 : 8;
+    const w = (SLOT_AREA.w - gap * (slots - 1)) / slots;
+    const rate = rapidFireMult(world.loadout);
+    owned.forEach((el, i) => {
+      const x = SLOT_AREA.x + w / 2 + i * (w + gap);
+      const ready = 1 - Math.min(1, world.barrelCooldown(el) / (ELEMENTS[el].fireInterval * rate));
+      g.fillStyle(ELEMENT_COLORS[el].main, 0.85);
+      g.fillRect(x - w / 2 + 10, SLOT_AREA.y + SLOT_AREA.h / 2 - 12, (w - 20) * ready, 5);
+    });
   }
 
   private updateToast(dt: number): void {
@@ -185,7 +235,7 @@ export class Hud {
       const filled = i < world.health;
       const x = 34 + i * 46;
       const flash = !filled && this.healthFlash > 0 && i === world.health;
-      heart(g, x, 36, 15, filled ? COLORS.danger : flash ? 0xffffff : 0x2a2f55, filled ? 0xffb3c1 : 0x3a4070);
+      heart(g, x, 36, 15, filled ? COLORS.danger : flash ? 0x7a2a3a : 0x2a2f55, filled ? 0xffb3c1 : 0x3a4070);
     }
 
     const r = world.runner;
@@ -234,23 +284,16 @@ export class Hud {
         label.setFontSize(14);
         continue;
       }
-      // Every element is a barrel that fires on its own: flash the slot on each shot.
+      // Every element is a barrel that fires on its own; its reload bar is drawn separately.
       const col = ELEMENT_COLORS[el];
-      const cd = world.barrelCooldown(el);
-      if (cd > (this.lastCooldown.get(el) ?? 0) + 0.02) this.fireFlash.set(el, 1);
-      this.lastCooldown.set(el, cd);
-      const flash = Math.max(0, (this.fireFlash.get(el) ?? 0) - 0.08);
-      this.fireFlash.set(el, flash);
-      g.fillStyle(col.dark, 0.75 + 0.25 * flash);
+      g.fillStyle(col.dark, 0.85);
       g.fillRoundedRect(x - w / 2, y - h / 2, w, h, 14);
-      g.lineStyle(2 + 3 * flash, col.main, 0.75 + 0.25 * flash);
+      g.lineStyle(3, col.main, 0.85);
       g.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 14);
-      const interval = ELEMENTS[el].fireInterval * rapidFireMult(world.loadout);
-      const ready = 1 - Math.min(1, cd / interval);
-      g.fillStyle(col.main, 0.85);
-      g.fillRoundedRect(x - w / 2 + 10, y + h / 2 - 12, (w - 20) * ready, 5, 2);
+      g.fillStyle(0x000000, 0.35);
+      g.fillRect(x - w / 2 + 10, y + h / 2 - 12, w - 20, 5);
       const compact = slots > 5;
-      drawIcon(g, el, x, y - (compact ? 10 : 18), compact ? 14 : 18 + 3 * flash);
+      drawIcon(g, el, x, y - (compact ? 10 : 18), compact ? 14 : 19);
       label.setPosition(x, y + (compact ? 26 : 22));
       label.setFontSize(compact ? 13 : slots > 4 ? 14 : 16);
       label.setText(compact ? '' : UPGRADE_DEFS[el].name.toUpperCase());

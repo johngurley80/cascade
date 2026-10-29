@@ -58,14 +58,14 @@ export const ELEMENTS = {
   fire: {
     /** Seconds between shots from this element's barrel. */
     fireInterval: 0.3,
-    damage: 9,
+    damage: 7,
     burnDuration: 1.8,
     burnDps: 6,
     burnTickInterval: 0.3,
   },
   water: {
     fireInterval: 0.28,
-    damage: 8,
+    damage: 7,
     splashRadius: 82,
     /** Added splash radius per Wider splash level. */
     splashRadiusPerLevel: 32,
@@ -73,7 +73,7 @@ export const ELEMENTS = {
   },
   lightning: {
     fireInterval: 0.36,
-    damage: 10,
+    damage: 9,
     /** Max distance of one hop between wet enemies. */
     chainRange: 175,
     /** Additional wet targets beyond the first. */
@@ -84,7 +84,7 @@ export const ELEMENTS = {
   },
   frost: {
     fireInterval: 0.3,
-    damage: 9,
+    damage: 7,
     chillDuration: 3,
     /** Speed multiplier while chilled. */
     chillSpeedMult: 0.5,
@@ -97,7 +97,7 @@ export const ELEMENTS = {
   },
   wind: {
     fireInterval: 0.34,
-    damage: 11,
+    damage: 9,
     gustRadius: 120,
     /** Max distance an enemy is pulled towards the impact in one gust. */
     gustPull: 46,
@@ -111,7 +111,7 @@ export const ELEMENTS = {
   },
   toxin: {
     fireInterval: 0.3,
-    damage: 7,
+    damage: 6,
     poisonDuration: 4.5,
     poisonDps: 5,
     poisonTickInterval: 0.5,
@@ -155,7 +155,7 @@ export const REACTIONS = {
   maxPendingReactions: 160,
   maxSteamClouds: 14,
   /** Each generation deeper, blasts grow by these fractions: cascades build to a crescendo. */
-  escalation: { radiusPerGen: 0.08, damagePerGen: 0.15 },
+  escalation: { radiusPerGen: 0.08, damagePerGen: 0.1 },
   /** Damage records kept per cascade for the results-screen replay. */
   replayRecordCap: 160,
 } as const;
@@ -178,9 +178,9 @@ export const ENEMIES: Record<EnemyKind, EnemyStats> = {
   splitter: { radius: 24, hp: 30, speed: 30, score: 20 },
   splitling: { radius: 12, hp: 7, speed: 56, score: 5 },
   volatile: { radius: 19, hp: 16, speed: 36, score: 20 },
-  hive: { radius: 70, hp: 2200, speed: 12, score: 400 },
-  aegis: { radius: 76, hp: 4200, speed: 11, score: 600 },
-  monolith: { radius: 86, hp: 9000, speed: 10, score: 1000 },
+  hive: { radius: 70, hp: 3000, speed: 12, score: 400 },
+  aegis: { radius: 76, hp: 5600, speed: 11, score: 600 },
+  monolith: { radius: 86, hp: 12000, speed: 10, score: 1000 },
 };
 
 export const ELITE = {
@@ -219,15 +219,15 @@ export const WAVES = {
   /** Enemy HP multiplier per wave beyond the first (bosses use their own HP). */
   hpScalePerWave: 0.08,
   /** Quadratic term: health ramps gently early and steeply late. */
-  hpScaleCurve: 0.03,
+  hpScaleCurve: 0.042,
   /** Formations grow by this fraction per wave from wave 4 on (crowds feed cascades). */
-  countGrowthPerWave: 0.075,
+  countGrowthPerWave: 0.09,
   /** Cap on formation growth (endless waves). */
   maxCountMult: 2,
   /** Global enemy speed multiplier. */
   speedMult: 1.1,
   /** Enemies get this much faster each wave. */
-  speedGrowthPerWave: 0.025,
+  speedGrowthPerWave: 0.045,
   /** Steeper HP scaling for endless waves beyond the normal run. */
   endlessHpScalePerWave: 0.2,
   /** From this wave on, each wave has a second phase: its formations again, mirrored. */
@@ -240,8 +240,8 @@ export const WAVES = {
   /** Delay before the first group spawns in a wave. */
   introDelay: 1.6,
   /** Keep at least this many enemies alive: the next group arrives early when the crowd thins. */
-  minPopulationBase: 14,
-  minPopulationPerWave: 3,
+  minPopulationBase: 6,
+  minPopulationPerWave: 4,
   /** When the crowd thins, pull the next group forward to this lead time. */
   idleSkipLead: 0.8,
   /** Spacing between enemies inside formations. */
@@ -268,11 +268,11 @@ export const SCORE = {
 } as const;
 
 export const FX = {
-  maxParticles: 520,
+  maxParticles: 380,
   /** Share of the particle budget that small, frequent effects (hits, shots) may use. */
   minorParticleShare: 0.45,
   reducedParticleMult: 0.35,
-  shakeMajor: 0.006,
+  shakeMajor: 0.0025,
   shakeDuration: 140,
   boltDuration: 0.26,
   rippleDuration: 0.45,

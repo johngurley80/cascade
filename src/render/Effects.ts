@@ -2,6 +2,10 @@ import Phaser from 'phaser';
 import { FX } from '../config';
 import { SpritePool, TEX, ensureTextures } from './textures';
 
+/** Photosensitivity guard: at most this many impact flashes may start per second. */
+const MAX_FLASHES_PER_SECOND = 4;
+const FLASH_ALPHA = 0.3;
+
 interface Particle {
   x: number;
   y: number;
@@ -59,6 +63,9 @@ export class Effects {
   private flashes: Flash[] = [];
   private readonly softSprites: SpritePool;
   private readonly glowSprites: SpritePool;
+  private readonly ringSprites: SpritePool;
+  private flashTimes: number[] = [];
+  private clock = 0;
   reduced = false;
 
   constructor(
@@ -69,6 +76,7 @@ export class Effects {
     ensureTextures(scene);
     this.softSprites = new SpritePool(scene, soft.depth + 0.5);
     this.glowSprites = new SpritePool(scene, glow.depth + 0.5);
+    this.ringSprites = new SpritePool(scene, glow.depth + 0.25);
   }
 
   clear(): void {
@@ -78,9 +86,15 @@ export class Effects {
     this.flashes.length = 0;
   }
 
-  /** A brief bright disc that pops and fades: the "impact" frame of a reaction. */
-  flash(x: number, y: number, r: number, color: number, duration = 0.14): void {
-    if (this.flashes.length > 40) this.flashes.shift();
+  /**
+   * A soft, dim, coloured disc that fades in a moment: the "impact" of a reaction.
+   * Rate-limited and never white, so busy cascades don't strobe.
+   */
+  flash(x: number, y: number, r: number, color: number, duration = 0.22): void {
+    if (this.reduced) return;
+    this.flashTimes = this.flashTimes.filter((t) => this.clock - t < 1);
+    if (this.flashTimes.length >= MAX_FLASHES_PER_SECOND) return;
+    this.flashTimes.push(this.clock);
     this.flashes.push({ x, y, r, life: duration, max: duration, color });
   }
 
@@ -148,6 +162,7 @@ export class Effects {
   }
 
   update(dt: number): void {
+    this.clock += dt;
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
       p.life -= dt;
@@ -182,30 +197,26 @@ export class Effects {
     soft.clear();
     glow.clear();
 
+    const sp = this.softSprites;
+    const gp = this.glowSprites;
+    const rp = this.ringSprites;
+    sp.begin();
+    gp.begin();
+    rp.begin();
     for (const r of this.rings) {
       const t = 1 - r.life / r.max;
       const ease = 1 - (1 - t) * (1 - t);
-      const radius = r.r0 + (r.r1 - r.r0) * ease;
+      const radius = Math.max(1, r.r0 + (r.r1 - r.r0) * ease);
       const a = 1 - t;
-      if (r.fill > 0) {
-        soft.fillStyle(r.color, r.fill * a);
-        soft.fillCircle(r.x, r.y, radius);
-      }
+      if (r.fill > 0) sp.next(TEX.disc).setPosition(r.x, r.y).setDisplaySize(radius * 2, radius * 2).setTint(r.color).setAlpha(r.fill * a * 0.8);
       // Ring edges draw above enemies so reactions read even over a crowd.
-      glow.lineStyle(r.width * (0.4 + a * 0.6), r.color, 0.95 * a);
-      glow.strokeCircle(r.x, r.y, radius);
+      rp.next(TEX.ring).setPosition(r.x, r.y).setDisplaySize(radius * 2.13, radius * 2.13).setTint(r.color).setAlpha(0.8 * a);
     }
 
-    const sp = this.softSprites;
-    const gp = this.glowSprites;
-    sp.begin();
-    gp.begin();
     for (const f of this.flashes) {
       const t = 1 - f.life / f.max;
-      const r = f.r * (0.6 + 0.5 * t);
-      gp.next(TEX.dot).setPosition(f.x, f.y).setDisplaySize(r * 2.4, r * 2.4).setTint(f.color).setAlpha(0.85 * (1 - t)).setRotation(0);
-      const c = f.r * 0.8 * (1 - t * 0.5);
-      gp.next(TEX.dot).setPosition(f.x, f.y).setDisplaySize(c, c).setTint(0xffffff).setAlpha(0.9 * (1 - t)).setRotation(0);
+      const r = f.r * (0.7 + 0.4 * t);
+      gp.next(TEX.dot).setPosition(f.x, f.y).setDisplaySize(r * 2.4, r * 2.4).setTint(f.color).setAlpha(FLASH_ALPHA * (1 - t));
     }
 
     for (const p of this.particles) {
@@ -237,16 +248,15 @@ export class Effects {
     }
     sp.end();
     gp.end();
+    rp.end();
 
+    // Bolts fade out steadily (no random flicker).
     for (const b of this.bolts) {
       const a = b.life / b.max;
-      const flicker = 0.75 + Math.random() * 0.25;
       for (const path of b.points) {
-        glow.lineStyle(b.width * 4, b.color, 0.28 * a);
+        glow.lineStyle(b.width * 3, b.color, 0.2 * a);
         strokePath(glow, path);
-        glow.lineStyle(b.width, b.color, a * flicker);
-        strokePath(glow, path);
-        glow.lineStyle(Math.max(1, b.width * 0.4), 0xffffff, a);
+        glow.lineStyle(b.width, b.color, 0.85 * a);
         strokePath(glow, path);
       }
     }
